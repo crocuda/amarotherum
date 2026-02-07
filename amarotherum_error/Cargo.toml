@@ -1,0 +1,22 @@
+[package]
+name = "amarotherum_error"
+version = "0.1.1"
+edition = "2024"
+
+[dependencies]
+
+thiserror.workspace = true
+miette.workspace = true
+bon.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+
+log.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+toml.workspace = true
+
+servo.workspace = true
+
+bevy.workspace = true

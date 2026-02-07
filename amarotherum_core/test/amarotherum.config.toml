@@ -1,0 +1,18 @@
+
+[gui]
+[gui.theme]
+
+## Tabs
+[gui.theme.tab]
+color = "#00000000"
+width = 10
+[gui.theme.tab.border]
+color = "#00000000"
+width = 1
+
+## Windows
+[gui.theme.window]
+color = "#00000000"
+[gui.theme.window.border]
+width = 2
+color = "#00000000"

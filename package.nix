@@ -23,24 +23,35 @@ pkgs.rustPlatform.buildRustPackage rec {
     installShellFiles
     pkg-config
 
-    llvmPackages.clang
     clang
+
+    # Dynamic linking for crate deps
+    rust-jemalloc-sys
+    fontconfig
+    freetype
   ];
   buildInputs = with pkgs; [
     openssl
     pkg-config
 
+    uv
+    python3
+    llvmPackages.bintools # provides lld
+
     (rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
   ];
 
-  LIBCLANG_PATH = lib.makeLibraryPath [pkgs.llvmPackages.libclang.lib];
-  # LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-  # LIBCLANG_PATH = lib.getLib pkgs.llvmPackages.libclang.lib;
+  MACH_USE_NIX = true;
+  UV_PYTHON = pkgs.python3;
+  UV_VENV_CLEAR = 1; # clear env no confirm
 
-  postInstall = ''
-    installShellCompletion --cmd ${pname} \
-      --bash ./autocompletion/${pname}.bash \
-      --fish ./autocompletion/${pname}.fish \
-      --zsh  ./autocompletion/_${pname}
-  '';
+  LIBCLANG_PATH = with pkgs;
+    lib.makeLibraryPath [
+      # libclang
+      llvmPackages.clang-unwrapped.lib
+      # pkgs.llvmPackages.libclang.lib
+    ];
+  CLANG_PATH = with pkgs; lib.makeLibraryPath [llvmPackages.clang-unwrapped.lib];
+  # Enable colored cargo and rustc output
+  TERMINFO = with pkgs; "${ncurses.out}/share/terminfo";
 }

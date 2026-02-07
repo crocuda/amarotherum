@@ -1,0 +1,38 @@
+[package]
+name = "amarotherum_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+# fix servo missing deps feature
+# rustls.workspace = true
+
+# Error
+amarotherum_error = { path = "../amarotherum_error" }
+
+miette = { workspace = true, features = ["fancy"] }
+tracing = { workspace = true, features = ["async-await", "log"] }
+log.workspace = true
+env_logger.workspace = true
+
+
+# GUI
+bevy.workspace = true
+
+# Renderer/Engine
+servo.workspace = true
+# servoshell.workspace = true
+# servoshell = { path = "../servoshell/" }
+
+# Cli
+clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
+clap = { version = "4.5.57", features = ["derive"] }
+toml.workspace = true
+
+serde = { workspace = true, features = ["derive"] }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+owo-colors = { version = "4.2.3", features = ["supports-colors"] }
+uuid = { version = "1.20.0", features = ["v4"] }
+euclid = "0.22.13"
+url = "2.5.8"

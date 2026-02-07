@@ -1,8 +1,49 @@
-[package]
-name = "amarotherum"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "2"
+members = [
+  ## Binaries
+  # Command line entrypoint.
+  "amarotherum",
+  "amarotherum_core",
+  "amarotherum_error",
+  # Local fork of servoshell because we need to use private structs
+  # "servoshell",
+]
 
-[dependencies]
-iced = "0.14.0"
-servo = "0.0.1"
+
+[workspace.package]
+version = "0.0.1"
+authors = ["The Servo Project Developers + amarotherum developers"]
+license = "GPL-2.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+
+thiserror = "2.0.12"
+miette = "7.2.0"
+tracing = "0.1.41"
+log = "0.4.22"
+env_logger = "0.11.5"
+
+bon = "3.5.1"
+tokio = { version = "1.40.0", features = ["full"] }
+
+## GUI
+bevy = "0.18.1"
+
+## Browser
+# libservo = { git = "https://github.com/servo/servo", branch = "main" }
+# servo = { git = "https://github.com/servo/servo", branch = "main" }
+servo = { git = "https://github.com/servo/servo", tag = "v0.5.0" }
+
+# libservo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
+# servo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
+# servoshell = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
+# servoshell = { path = "./servoshell/" }
+
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = { version = "1.0.128", features = ["preserve_order"] }
+toml = "1.1.6"
+
+# rustls = { version = "*", features = ["aws-lc-rs"] }

@@ -1,0 +1,13 @@
+[package]
+name = "amarotherum"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+amarotherum_core = { path = "../amarotherum_core" }
+amarotherum_error = { path = "../amarotherum_error" }
+
+miette = { workspace = true, features = ["fancy"] }
+log.workspace = true
+tracing.workspace = true
+tokio.workspace = true
