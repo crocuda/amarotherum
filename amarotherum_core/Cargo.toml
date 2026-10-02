@@ -19,6 +19,11 @@ env_logger.workspace = true
 
 # GUI
 bevy.workspace = true
+winit.workspace = true
+dpi.workspace = true
+raw-window-handle.workspace = true
+
+# servo-wgpu-interop-adapter.workspace = true
 
 # Renderer/Engine
 servo.workspace = true

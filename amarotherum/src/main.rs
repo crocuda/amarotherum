@@ -13,7 +13,7 @@ This main function is the first function to be executed when launching the binar
 async fn main() -> Result<()> {
     trace!("Launch process.");
     make_handler()?;
-    Cli::run().await?;
+    Cli::run()?;
     trace!("Process clean exit.");
     Ok(())
 }

@@ -30,7 +30,24 @@ bon = "3.5.1"
 tokio = { version = "1.40.0", features = ["full"] }
 
 ## GUI
-bevy = "0.18.1"
+winit = { version = "0.30.13" }
+dpi = { version = "0.1.2" }
+raw-window-handle = { version = "0.6.2" }
+bevy = { version = "0.19.1", features = [
+  "bevy_ui",
+  "bevy_ui_widgets",
+  "bevy_ui_debug",
+
+  "bevy_window",
+  "bevy_winit",
+
+  # For passing window/display handle to servo
+  # "alloc",
+] }
+
+# servo-wgpu-interop-adapter = { git = "https://github.com/merely-made/wgpu-graft", features = [
+# "servo",
+# ], branch = "main" }
 
 ## Browser
 # libservo = { git = "https://github.com/servo/servo", branch = "main" }

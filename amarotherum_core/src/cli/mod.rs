@@ -1,30 +1,29 @@
 mod types;
+use tracing::debug;
 pub use types::{Cli, Commands, GuiCommands};
-mod utils;
 
 // Clap
 use clap::Parser;
 
 // Gui
-use crate::Gui;
+use crate::gui::run;
 
 // Error
 use amarotherum_error::AmaroError;
 use miette::{IntoDiagnostic, Result};
 
 impl Cli {
-    pub async fn run() -> Result<(), AmaroError> {
+    pub fn run() -> Result<(), AmaroError> {
         let cli = Cli::parse();
-        Self::switch(cli).await?;
+        Self::switch(cli)?;
         Ok(())
     }
-    pub async fn switch(cli: Cli) -> Result<(), AmaroError> {
-        utils::set_tracer(&cli)?;
-        utils::set_logger(&cli)?;
-
+    pub fn switch(cli: Cli) -> Result<(), AmaroError> {
         match cli.commands {
             Commands::Gui(gui_command) => match gui_command {
-                GuiCommands::Run => Gui::run().await?,
+                GuiCommands::Run => {
+                    run()?;
+                }
             },
         }
         Ok(())
