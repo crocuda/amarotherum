@@ -1,12 +1,12 @@
 mod types;
-use tracing::debug;
+use crate::{gui, trace};
 pub use types::{Cli, Commands, GuiCommands};
 
-// Clap
-use clap::Parser;
+use tracing::info;
 
-// Gui
-use crate::gui::run;
+// Clap
+use crate::trace::tracer;
+use clap::Parser;
 
 // Error
 use amarotherum_error::AmaroError;
@@ -14,6 +14,8 @@ use miette::{IntoDiagnostic, Result};
 
 impl Cli {
     pub fn run() -> Result<(), AmaroError> {
+        tracer().verbosity(tracing::Level::TRACE).set().unwrap();
+        info!("Starting cli.");
         let cli = Cli::parse();
         Self::switch(cli)?;
         Ok(())
@@ -22,7 +24,7 @@ impl Cli {
         match cli.commands {
             Commands::Gui(gui_command) => match gui_command {
                 GuiCommands::Run => {
-                    run()?;
+                    gui::view::main()?;
                 }
             },
         }

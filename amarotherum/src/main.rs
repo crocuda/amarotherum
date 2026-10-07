@@ -9,8 +9,9 @@ use tracing::trace;
 The binary entrypoint.
 This main function is the first function to be executed when launching the binary.
 */
-#[tokio::main]
-async fn main() -> Result<()> {
+
+// #[tokio::main]
+fn main() -> Result<()> {
     trace!("Launch process.");
     make_handler()?;
     Cli::run()?;

@@ -1,7 +1,7 @@
 mod cli;
+pub mod trace;
 mod config;
-mod gui;
+pub mod gui;
 
 pub use cli::Cli;
 pub use config::{Config, GuiConfig};
-pub use gui::Gui;

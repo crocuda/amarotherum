@@ -1,6 +1,6 @@
 [package]
 name = "amarotherum_core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [dependencies]
@@ -10,23 +10,32 @@ edition = "2024"
 
 # Error
 amarotherum_error = { path = "../amarotherum_error" }
-
 miette = { workspace = true, features = ["fancy"] }
 tracing = { workspace = true, features = ["async-await", "log"] }
 log.workspace = true
 env_logger.workspace = true
 
+tokio.workspace = true
 
-# GUI
-bevy.workspace = true
+## GUI
 winit.workspace = true
+# bevy.workspace = true
+iced.workspace = true
+iced_winit.workspace = true
+
+## Webview
+# iced_webview_v2.workspace = true
+
 dpi.workspace = true
 raw-window-handle.workspace = true
-
 # servo-wgpu-interop-adapter.workspace = true
 
-# Renderer/Engine
+
+## Renderer/Engine
+# Servo and deps dependencies
+
 servo.workspace = true
+
 # servoshell.workspace = true
 # servoshell = { path = "../servoshell/" }
 
@@ -41,3 +50,5 @@ owo-colors = { version = "4.2.3", features = ["supports-colors"] }
 uuid = { version = "1.20.0", features = ["v4"] }
 euclid = "0.22.13"
 url = "2.5.8"
+indexmap = { version = "2.14.2", features = ["serde"] }
+bon.workspace = true

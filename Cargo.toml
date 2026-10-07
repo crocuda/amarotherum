@@ -29,21 +29,40 @@ env_logger = "0.11.5"
 bon = "3.5.1"
 tokio = { version = "1.40.0", features = ["full"] }
 
-## GUI
-winit = { version = "0.30.13" }
-dpi = { version = "0.1.2" }
+## Webview
+# iced_webview_v2 = "0.1"
+# iced_webview_v2 = { git = "https://github.com/franzos/iced_webview_v2.git", branch = "main", default-features = false, features = [
+#   "servo",
+# ] } # or "blitz" or "servo", "cef"
 raw-window-handle = { version = "0.6.2" }
-bevy = { version = "0.19.1", features = [
-  "bevy_ui",
-  "bevy_ui_widgets",
-  "bevy_ui_debug",
+dpi = { version = "0.1.2" }
 
-  "bevy_window",
-  "bevy_winit",
-
-  # For passing window/display handle to servo
-  # "alloc",
+## GUI
+# Iced
+winit = { version = "0.30.13" }
+# iced = { version = "0.14.0", features = ["advanced", "image", "tokio", "lazy"] }
+iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  "advanced",
+  "image",
+  "tokio",
+  "linux-theme-detection",
+  "image-without-codecs",
 ] }
+
+# Bevy
+# bevy = { version = "0.19.1", features = [
+#   "bevy_ui",
+#   "ui",
+#   "bevy_ui_widgets",
+#   "bevy_ui_debug",
+#
+#   "bevy_window",
+#   "bevy_winit",
+#
+#   # Deprecated: For passing window/display handle to servo
+#   # "alloc",
+# ] }
 
 # servo-wgpu-interop-adapter = { git = "https://github.com/merely-made/wgpu-graft", features = [
 # "servo",
@@ -52,7 +71,14 @@ bevy = { version = "0.19.1", features = [
 ## Browser
 # libservo = { git = "https://github.com/servo/servo", branch = "main" }
 # servo = { git = "https://github.com/servo/servo", branch = "main" }
-servo = { git = "https://github.com/servo/servo", tag = "v0.5.0" }
+servo = { git = "https://github.com/servo/servo", tag = "v0.7.0" }
+# servo = { git = "https://github.com/servo/servo", tag = "v0.1.3" }
+
+## Servo dependencies
+
+# rsa = { version = "0.10.0-rc.19" }
+# icu_normalizer = "2.1.0"
+# icu_capi = "=2.1.1"
 
 # libservo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
 # servo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
