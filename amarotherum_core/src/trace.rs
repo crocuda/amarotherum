@@ -27,10 +27,10 @@ pub fn tracer(
     let mut filter: String = level.clone();
     filter += ",users=warn";
     match http {
-        Some(true) => filter += &format!(",tower_http={level},mio={level}"),
-        Some(false) | None => filter += ",tower_http=warn,mio=warn",
+        Some(true) => filter += &format!(",hyper={level},h2={level}"),
+        Some(false) | None => filter += ",hyper=debug,h2=debug",
     };
-    filter += ",calloop=warn,zbus=warn";
+    filter += ",calloop=warn,zbus=warn,";
 
     let builder = FmtSubscriber::builder()
         .with_max_level(verbosity)

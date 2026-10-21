@@ -22,6 +22,7 @@ winit.workspace = true
 # bevy.workspace = true
 iced.workspace = true
 iced_winit.workspace = true
+iced_wgpu.workspace = true
 
 ## Webview
 # iced_webview_v2.workspace = true
