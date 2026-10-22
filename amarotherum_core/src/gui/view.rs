@@ -1,3 +1,4 @@
+use iced::advanced::image;
 use iced_wgpu::graphics::{Shell, Viewport};
 use iced_wgpu::{Engine, Renderer, wgpu};
 use iced_winit::conversion;
@@ -20,12 +21,18 @@ use winit::{
 };
 
 // Servo
+use core::borrow::BorrowMut;
+use std::ops::DerefMut;
+
 use dpi::PhysicalSize;
 use euclid::{Box2D, Point2D, Scale, Size2D};
+use indexmap::IndexMap;
 use raw_window_handle::{
     HasDisplayHandle, HasWindowHandle, WaylandDisplayHandle, WaylandWindowHandle,
 };
-use servo::{DevicePixel, Servo, ServoBuilder, WebView, WebViewBuilder, WebViewDelegate};
+use servo::{
+    DevicePixel, Servo, ServoBuilder, WebView, WebViewBuilder, WebViewDelegate, WebViewId,
+};
 use servo::{EventLoopWaker, RenderingContext, SoftwareRenderingContext, WindowRenderingContext};
 use url::Url;
 
@@ -39,13 +46,15 @@ use iced::{
 // Globals
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use tracing::{debug, error, info, trace, warn};
 
 // Error
 use amarotherum_error::AmaroError;
 use miette::Result;
+
+use crate::gui::draw;
 
 pub fn main() -> Result<(), AmaroError> {
     // tracing_subscriber::fmt::init();
@@ -63,29 +72,16 @@ pub enum Message {
     Keyboard,
 }
 
-struct ServoState {
+/// We use lifetime because each substate contains
+/// a pointer to the shared window.
+/// Iced and Servo need their own handler of the same window.
+pub struct State {
     window: Arc<Window>,
-    servo: Servo,
-    rendering_context: Rc<WindowRenderingContext>,
-    webviews: RefCell<Vec<WebView>>,
+    iced_state: IcedState,
+    pub servo_state: Rc<ServoState>,
 }
-impl ServoState {
-    fn rect(&self) -> Box2D<i32, DevicePixel> {
-        let size = self.rendering_context.size();
-        trace!("Size={:#?}", size);
-        Box2D::new(
-            Point2D::new(0, 0),
-            Point2D::new(size.width as i32, size.height as i32),
-        )
-    }
-}
-impl ::servo::WebViewDelegate for ServoState {
-    fn notify_new_frame_ready(&self, _: WebView) {
-        self.window.request_redraw();
-    }
-}
-struct State {
-    window: Arc<Window>,
+
+struct IcedState {
     queue: wgpu::Queue,
     device: wgpu::Device,
     surface: wgpu::Surface<'static>,
@@ -98,12 +94,31 @@ struct State {
     modifiers: ModifiersState,
     resized: bool,
 }
+pub struct ServoState {
+    window: Arc<Window>,
+    pub servo: Servo,
+    pub rendering_context: Rc<WindowRenderingContext>,
+    pub webviews: RefCell<IndexMap<WebViewId, WebView>>,
+}
+impl ServoState {
+    pub fn rect(&self) -> Box2D<i32, DevicePixel> {
+        let size = self.rendering_context.size();
+        // trace!("Size={:#?}", size);
+        Box2D::new(
+            Point2D::new(0, 0),
+            Point2D::new(size.width as i32, size.height as i32),
+        )
+    }
+}
+impl ::servo::WebViewDelegate for ServoState {
+    fn notify_new_frame_ready(&self, _: WebView) {
+        self.window.request_redraw();
+    }
+}
+
 enum App {
     Initial(Waker),
-    Ready {
-        state: State,
-        servo_state: Rc<ServoState>,
-    },
+    Ready { state: State },
 }
 
 impl App {
@@ -117,14 +132,13 @@ impl ApplicationHandler<WakerEvent> for App {
             // Create headless window for servo.
             let window = Arc::new(
                 event_loop
-                    .create_window(winit::window::WindowAttributes::default().with_visible(true))
+                    .create_window(winit::window::WindowAttributes::default())
                     .expect("Create invisible servo window"),
             );
+
             // Initial window size
-            let width = 1500;
-            let height = 1500;
-            let initial_size = PhysicalSize::new(width, height);
-            let size = PhysicalSize::new(window.inner_size().width, window.inner_size().height);
+            let inner_size = window.inner_size();
+            let size = PhysicalSize::new(inner_size.width, inner_size.height);
 
             let display_handle = window.display_handle().unwrap();
             let window_handle = window.window_handle().unwrap();
@@ -136,30 +150,29 @@ impl ApplicationHandler<WakerEvent> for App {
                 .event_loop_waker(Box::new(waker.clone()))
                 .build();
             servo.setup_logging();
+
             let servo_state = Rc::new(ServoState {
-                window: window,
+                window: window.clone(),
                 servo,
                 rendering_context,
                 webviews: Default::default(),
             });
             // Make a new WebView and assign the `AppState` as the delegate.
-            let url = Url::parse("https://demo.servo.org/").expect("Guaranteed by argument");
+            // let url = Url::parse("https://demo.servo.org/").expect("Guaranteed by argument");
+            let url = Url::parse("https://elrumordelaluz.github.io/reshake/")
+                .expect("Guaranteed by argument");
 
             let webview =
                 WebViewBuilder::new(&servo_state.servo, servo_state.rendering_context.clone())
                     .url(url)
-                    .hidpi_scale_factor(Scale::new(servo_state.window.scale_factor() as f32))
+                    .hidpi_scale_factor(Scale::new(window.clone().scale_factor() as f32))
                     .delegate(servo_state.clone())
                     .build();
+            servo_state
+                .webviews
+                .borrow_mut()
+                .insert(webview.id(), webview);
 
-            servo_state.webviews.borrow_mut().push(webview);
-
-            // Create main window
-            let window = Arc::new(
-                event_loop
-                    .create_window(winit::window::WindowAttributes::default())
-                    .expect("Create window"),
-            );
             let physical_size = window.inner_size();
             let viewport = Viewport::with_physical_size(
                 Size::new(physical_size.width, physical_size.height),
@@ -168,6 +181,7 @@ impl ApplicationHandler<WakerEvent> for App {
                     application: 1.0,
                 },
             );
+
             let backend = wgpu::Backends::from_env().unwrap_or_default();
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: backend,
@@ -244,9 +258,7 @@ impl ApplicationHandler<WakerEvent> for App {
 
             // You should change this if you want to render continuously
             event_loop.set_control_flow(ControlFlow::Wait);
-
-            let state = State {
-                window,
+            let iced_state = IcedState {
                 device,
                 queue,
                 renderer,
@@ -260,13 +272,19 @@ impl ApplicationHandler<WakerEvent> for App {
                 resized: false,
             };
 
-            *self = Self::Ready { state, servo_state };
+            let state = State {
+                window,
+                iced_state,
+                servo_state,
+            };
+
+            *self = Self::Ready { state };
         }
     }
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: WakerEvent) {
-        if let Self::Ready { state, servo_state } = self {
-            servo_state.servo.spin_event_loop();
+        if let Self::Ready { state } = self {
+            state.servo_state.servo.spin_event_loop();
         }
     }
 
@@ -278,27 +296,26 @@ impl ApplicationHandler<WakerEvent> for App {
     ) {
         self.servo_window_event(event_loop, _window_id, event.clone());
 
-        let Self::Ready {
-            state,
-            servo_state: _,
-        } = self
-        else {
+        let Self::Ready { state } = self else {
             return;
         };
         let State {
             window,
-            device,
-            queue,
-            surface,
-            format,
-            renderer,
-            events,
-            viewport,
-            cursor,
-            modifiers,
-            cache,
-            resized,
-            ..
+            servo_state,
+            iced_state:
+                IcedState {
+                    device,
+                    queue,
+                    surface,
+                    format,
+                    renderer,
+                    events,
+                    viewport,
+                    cursor,
+                    modifiers,
+                    cache,
+                    resized,
+                },
         } = state;
         //Exit if not event do not originate from the main window.
         if _window_id != window.id() {
@@ -360,8 +377,10 @@ impl ApplicationHandler<WakerEvent> for App {
                         let commandline = container("commandline");
 
                         // Draw iced on top
+
+                        let image = draw::webview_to_image(&state.servo_state).unwrap();
                         let mut interface = UserInterface::build(
-                            column![windows, statusline, commandline],
+                            column![windows, image, statusline, commandline],
                             viewport.logical_size(),
                             std::mem::take(cache),
                             renderer,
@@ -441,6 +460,7 @@ impl ApplicationHandler<WakerEvent> for App {
 
         // If there are events pending
         if !events.is_empty() {
+            // User Interface
             let windows = container("windows")
                 .padding(5)
                 .align_top(Fill)
@@ -448,9 +468,12 @@ impl ApplicationHandler<WakerEvent> for App {
                 .style(container::bordered_box);
             let statusline = container("statusline");
             let commandline = container("commandline");
+
+            let image = draw::webview_to_image(&state.servo_state).unwrap();
+
             // We process them
             let mut interface = UserInterface::build(
-                column![windows, statusline, commandline],
+                column![windows, image, statusline, commandline],
                 viewport.logical_size(),
                 std::mem::take(cache),
                 renderer,
@@ -479,43 +502,10 @@ impl App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let Self::Ready {
-            state: _,
-            servo_state: state,
-        } = self
-        else {
+        let Self::Ready { state } = self else {
             return;
         };
-
-        //Exit if not event do not originate from the servo window.
-        if _window_id != state.window.id() {
-            return;
-        }
-
-        state.servo.spin_event_loop();
-        // debug!("window_id={:#?}", _window_id);
-        // debug!("event={:#?}", event);
-
-        match event {
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
-            WindowEvent::RedrawRequested => {
-                let webview = state.webviews.borrow().last().unwrap().paint();
-                // webview.paint();
-                debug!(
-                    "LoadStatus={:#?}",
-                    state.webviews.borrow().last().unwrap().load_status()
-                );
-                // println!("LoadStatus={:#?}", webview.load_status());
-                // state.rendering_context.present();
-
-                let rect = state.rect();
-                let image_buffer = state.rendering_context.read_to_image(rect.clone()).unwrap();
-                println!("{:?}", image_buffer);
-            }
-            _ => {}
-        }
+        state.servo_state.servo.spin_event_loop();
     }
 }
 

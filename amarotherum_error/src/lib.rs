@@ -53,7 +53,6 @@ pub enum AmaroError {
 
     #[error(transparent)]
     #[diagnostic(code(winit::error))]
-    // #[diagnostic(transparent)]
     WinitError(#[from] winit::error::EventLoopError),
     // #[error(transparent)]
     // #[diagnostic(code(bevy::error))]
