@@ -29,66 +29,54 @@ env_logger = "0.11.5"
 bon = "3.5.1"
 tokio = { version = "1.40.0", features = ["full"] }
 
-## Webview
-# iced_webview_v2 = "0.1"
-# iced_webview_v2 = { git = "https://github.com/franzos/iced_webview_v2.git", branch = "main", default-features = false, features = [
-#   "servo",
-# ] } # or "blitz" or "servo", "cef"
-raw-window-handle = { version = "0.6.2" }
-dpi = { version = "0.1.2" }
-
 ## GUI
 # Iced
+raw-window-handle = { version = "0.6.2" }
+dpi = { version = "0.1.2" }
 winit = { version = "0.30.13", features = ["rwh_06"] }
-# iced = { version = "0.14.0", features = ["advanced", "image", "tokio", "lazy"] }
-iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
-iced_wgpu = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
-iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
-  "advanced",
-  "image",
-  "tokio",
-  "linux-theme-detection",
-  "image-without-codecs",
+
+iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  # 0.15.0
   "image",
 ] }
-
-# Bevy
-# bevy = { version = "0.19.1", features = [
-#   "bevy_ui",
-#   "ui",
-#   "bevy_ui_widgets",
-#   "bevy_ui_debug",
-#
-#   "bevy_window",
-#   "bevy_winit",
-#
-#   # Deprecated: For passing window/display handle to servo
-#   # "alloc",
-# ] }
-
-# servo-wgpu-interop-adapter = { git = "https://github.com/merely-made/wgpu-graft", features = [
-# "servo",
-# ], branch = "main" }
+iced_wgpu = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  "image",
+  "image-without-codecs",
+] }
+iced_renderer = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  "image",
+  "image-without-codecs",
+] }
+iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  "image",
+  "image-without-codecs",
+] }
+iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+  "advanced",
+  "tokio",
+  "linux-theme-detection",
+  "image",
+  "image-without-codecs",
+  "tiny-skia",
+] }
 
 ## Browser
-# libservo = { git = "https://github.com/servo/servo", branch = "main" }
-# servo = { git = "https://github.com/servo/servo", branch = "main" }
+
+image = { version = "0.25.10", features = ["default", "default-formats"] }
 servo = { git = "https://github.com/servo/servo", tag = "v0.7.0" }
-# servo = { git = "https://github.com/servo/servo", tag = "v0.1.3" }
-
-## Servo dependencies
-
-# rsa = { version = "0.10.0-rc.19" }
-# icu_normalizer = "2.1.0"
-# icu_capi = "=2.1.1"
-
-# libservo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
-# servo = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
-# servoshell = { git = "https://github.com/servo/servo", tag = "v0.0.4" }
-# servoshell = { path = "./servoshell/" }
 
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = { version = "1.0.128", features = ["preserve_order"] }
 toml = "1.1.6"
 
 # rustls = { version = "*", features = ["aws-lc-rs"] }
+
+[patch.crates-io]
+# image = { git = "https://github.com/image-rs/image.git", version = "0.25.10" }
+
+[patch."https://github.com/iced-rs/iced.git"]
+iced_winit = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+iced_wgpu = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+iced = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+iced_graphics = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+iced_renderer = { git = "https://github.com/crocuda/iced.git?rev=fool" }

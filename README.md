@@ -1,20 +1,15 @@
 # Amarotherum - An arrogant web browser.
 
-Web browser based on
-[servo](https://servo.org)
-web engine
-and
-[iced](https://ided.rs)
-GUI.
+Web browser based on [servo](https://servo.org) web engine and [iced](https://ided.rs) GUI.
 
-## Install
+## Early development stage
 
-- Nix
+Nothing near from usable.
 
-  ```nix
+```sh
+cargo build
 
-  ```
+# or
 
-## Configuration
-
-### Keybindings
+cargo run --bin amarotherum gui run
+```

@@ -36,7 +36,7 @@ raw-window-handle.workspace = true
 # Servo and deps dependencies
 
 servo.workspace = true
-
+image.workspace = true
 # servoshell.workspace = true
 # servoshell = { path = "../servoshell/" }
 

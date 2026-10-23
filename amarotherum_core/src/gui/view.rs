@@ -1,4 +1,3 @@
-use iced::advanced::image;
 use iced_wgpu::graphics::{Shell, Viewport};
 use iced_wgpu::{Engine, Renderer, wgpu};
 use iced_winit::conversion;
@@ -21,9 +20,6 @@ use winit::{
 };
 
 // Servo
-use core::borrow::BorrowMut;
-use std::ops::DerefMut;
-
 use dpi::PhysicalSize;
 use euclid::{Box2D, Point2D, Scale, Size2D};
 use indexmap::IndexMap;
@@ -33,13 +29,16 @@ use raw_window_handle::{
 use servo::{
     DevicePixel, Servo, ServoBuilder, WebView, WebViewBuilder, WebViewDelegate, WebViewId,
 };
-use servo::{EventLoopWaker, RenderingContext, SoftwareRenderingContext, WindowRenderingContext};
+use servo::{
+    EventLoopWaker, OffscreenRenderingContext, RenderingContext, SoftwareRenderingContext,
+    WindowRenderingContext,
+};
 use url::Url;
 
 // Iced macros
 use iced::widget::{column, container, row, text};
 use iced::{
-    Element, Fill, Subscription, Task,
+    Element, Fill, Subscription, Task, Widget,
     widget::{Column, Container, Image, Row, Text, text_input},
 };
 
@@ -54,6 +53,7 @@ use tracing::{debug, error, info, trace, warn};
 use amarotherum_error::AmaroError;
 use miette::Result;
 
+use crate::gui::components;
 use crate::gui::draw;
 
 pub fn main() -> Result<(), AmaroError> {
@@ -62,13 +62,15 @@ pub fn main() -> Result<(), AmaroError> {
     // Initialize winit
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
-    let mut app = App::new(&event_loop);
-    event_loop.run_app(&mut app).unwrap();
+    let mut runner = Runner::new(&event_loop);
+    event_loop.run_app(&mut runner).unwrap();
 
     Ok(())
 }
 
+#[derive(Clone, Debug)]
 pub enum Message {
+    WebViewFrame,
     Keyboard,
 }
 
@@ -82,6 +84,7 @@ pub struct State {
 }
 
 struct IcedState {
+    app: components::App,
     queue: wgpu::Queue,
     device: wgpu::Device,
     surface: wgpu::Surface<'static>,
@@ -97,7 +100,8 @@ struct IcedState {
 pub struct ServoState {
     window: Arc<Window>,
     pub servo: Servo,
-    pub rendering_context: Rc<WindowRenderingContext>,
+    pub rendering_context: Rc<OffscreenRenderingContext>,
+    // pub rendering_context: Rc<WindowRenderingContext>,
     pub webviews: RefCell<IndexMap<WebViewId, WebView>>,
 }
 impl ServoState {
@@ -112,21 +116,21 @@ impl ServoState {
 }
 impl ::servo::WebViewDelegate for ServoState {
     fn notify_new_frame_ready(&self, _: WebView) {
-        self.window.request_redraw();
+        // self.window.request_redraw();
     }
 }
 
-enum App {
+enum Runner {
     Initial(Waker),
     Ready { state: State },
 }
 
-impl App {
+impl Runner {
     fn new(event_loop: &EventLoop<WakerEvent>) -> Self {
         Self::Initial(Waker::new(event_loop))
     }
 }
-impl ApplicationHandler<WakerEvent> for App {
+impl ApplicationHandler<WakerEvent> for Runner {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if let Self::Initial(waker) = self {
             // Create headless window for servo.
@@ -142,8 +146,13 @@ impl ApplicationHandler<WakerEvent> for App {
 
             let display_handle = window.display_handle().unwrap();
             let window_handle = window.window_handle().unwrap();
+
             let rendering_context =
                 Rc::new(WindowRenderingContext::new(display_handle, window_handle, size).unwrap());
+            let rendering_context = Rc::new(WindowRenderingContext::offscreen_context(
+                &rendering_context,
+                size,
+            ));
             let _ = rendering_context.make_current();
 
             let servo = ServoBuilder::default()
@@ -168,6 +177,7 @@ impl ApplicationHandler<WakerEvent> for App {
                     .hidpi_scale_factor(Scale::new(window.clone().scale_factor() as f32))
                     .delegate(servo_state.clone())
                     .build();
+
             servo_state
                 .webviews
                 .borrow_mut()
@@ -252,13 +262,16 @@ impl ApplicationHandler<WakerEvent> for App {
                     None,
                     Shell::headless(),
                 );
-
                 Renderer::new(engine, renderer::Settings::default())
             };
+
+            // Initialize scene and GUI controls
+            let app = components::App::new(servo_state.clone());
 
             // You should change this if you want to render continuously
             event_loop.set_control_flow(ControlFlow::Wait);
             let iced_state = IcedState {
+                app,
                 device,
                 queue,
                 renderer,
@@ -275,7 +288,7 @@ impl ApplicationHandler<WakerEvent> for App {
             let state = State {
                 window,
                 iced_state,
-                servo_state,
+                servo_state: servo_state.clone(),
             };
 
             *self = Self::Ready { state };
@@ -288,22 +301,25 @@ impl ApplicationHandler<WakerEvent> for App {
         }
     }
 
+    /// Converts a winit window event into an iced event.
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        self.servo_window_event(event_loop, _window_id, event.clone());
-
         let Self::Ready { state } = self else {
             return;
         };
+
+        state.servo_state.servo.spin_event_loop();
+
         let State {
             window,
             servo_state,
             iced_state:
                 IcedState {
+                    app,
                     device,
                     queue,
                     surface,
@@ -317,15 +333,12 @@ impl ApplicationHandler<WakerEvent> for App {
                     resized,
                 },
         } = state;
-        //Exit if not event do not originate from the main window.
-        if _window_id != window.id() {
-            return;
-        }
 
         // You should wire your own ticker logic if you will use widgets that must
         // notify the runtime concurrently.
         let waker = shell::Waker::noop();
 
+        // println!("{:#?}", &event);
         match event {
             WindowEvent::RedrawRequested => {
                 if *resized {
@@ -368,19 +381,9 @@ impl ApplicationHandler<WakerEvent> for App {
                                 label: None,
                             });
 
-                        let windows = container("windows")
-                            .padding(5)
-                            .align_top(Fill)
-                            .align_left(Fill)
-                            .style(container::bordered_box);
-                        let statusline = container("statusline");
-                        let commandline = container("commandline");
-
                         // Draw iced on top
-
-                        let image = draw::webview_to_image(&state.servo_state).unwrap();
                         let mut interface = UserInterface::build(
-                            column![windows, image, statusline, commandline],
+                            app.view(),
                             viewport.logical_size(),
                             std::mem::take(cache),
                             renderer,
@@ -459,53 +462,31 @@ impl ApplicationHandler<WakerEvent> for App {
         }
 
         // If there are events pending
+        // debug!("{:#?}", events);
         if !events.is_empty() {
             // User Interface
-            let windows = container("windows")
-                .padding(5)
-                .align_top(Fill)
-                .align_left(Fill)
-                .style(container::bordered_box);
-            let statusline = container("statusline");
-            let commandline = container("commandline");
-
-            let image = draw::webview_to_image(&state.servo_state).unwrap();
-
             // We process them
             let mut interface = UserInterface::build(
-                column![windows, image, statusline, commandline],
+                app.view(),
                 viewport.logical_size(),
                 std::mem::take(cache),
                 renderer,
             );
 
             let mut messages: shell::Bus<Message> = shell::Bus::new();
-
             let _ = interface.update(&window, &waker, &events, *cursor, renderer, &mut messages);
 
             events.clear();
             *cache = interface.into_cache();
 
             // update our UI with any messages
-            for message in messages {}
+            for message in messages {
+                app.update(message);
+            }
 
             // and request a redraw
             window.request_redraw();
         }
-    }
-}
-
-impl App {
-    fn servo_window_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        _window_id: winit::window::WindowId,
-        event: WindowEvent,
-    ) {
-        let Self::Ready { state } = self else {
-            return;
-        };
-        state.servo_state.servo.spin_event_loop();
     }
 }
 
