@@ -1,3 +1,3 @@
 pub mod components;
-pub mod draw;
+pub mod tabs;
 pub mod view;

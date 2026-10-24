@@ -1,3 +1,17 @@
+//! MAIN LOOP
+//!
+//! In this file we create the main Loop,responsible for window creation and event handling.
+//!
+//! The complexity of running `iced` alongside `servo` lays and must remain in this file.
+//!
+//! Indeed, both libraries must share the same window handler, and that is only possible
+//! if we create a custom loop (not the iced default) through winit
+//! and then pass down a shared window handler to iced and servo.
+//!
+//! This way other files may only contain simple and composable iced or servo modules.
+
+use crate::gui::components::Message;
+
 use iced_wgpu::graphics::{Shell, Viewport};
 use iced_wgpu::{Engine, Renderer, wgpu};
 use iced_winit::conversion;
@@ -33,7 +47,6 @@ use servo::{
     EventLoopWaker, OffscreenRenderingContext, RenderingContext, SoftwareRenderingContext,
     WindowRenderingContext,
 };
-use url::Url;
 
 // Iced macros
 use iced::widget::{column, container, row, text};
@@ -54,55 +67,36 @@ use amarotherum_error::AmaroError;
 use miette::Result;
 
 use crate::gui::components;
-use crate::gui::draw;
 
+/// Launch the event loop.
 pub fn main() -> Result<(), AmaroError> {
-    // tracing_subscriber::fmt::init();
-
     // Initialize winit
+    // let event_loop = EventLoop::with_user_event().build().unwrap();
     let event_loop = EventLoop::with_user_event().build().unwrap();
-
     let mut runner = Runner::new(&event_loop);
+
     event_loop.run_app(&mut runner).unwrap();
 
     Ok(())
 }
 
-#[derive(Clone, Debug)]
-pub enum Message {
-    WebViewFrame,
-    Keyboard,
-}
-
-/// We use lifetime because each substate contains
-/// a pointer to the shared window.
-/// Iced and Servo need their own handler of the same window.
+/// The global state.
 pub struct State {
+    /// Iced and Servo need their own handler of the same window,
+    /// so we put it in an Arc.
     window: Arc<Window>,
+    /// The proxy is for passing messages from iced to servo
+    /// through the event loop.
+    pub proxy: Proxy,
+
     iced_state: IcedState,
+    /// The servo_state need to be accessed to draw frames.
     pub servo_state: Rc<ServoState>,
 }
-
-struct IcedState {
-    app: components::App,
-    queue: wgpu::Queue,
-    device: wgpu::Device,
-    surface: wgpu::Surface<'static>,
-    format: wgpu::TextureFormat,
-    renderer: Renderer,
-    events: Vec<Event>,
-    cursor: mouse::Cursor,
-    cache: user_interface::Cache,
-    viewport: Viewport,
-    modifiers: ModifiersState,
-    resized: bool,
-}
 pub struct ServoState {
-    window: Arc<Window>,
+    pub window: Arc<Window>,
     pub servo: Servo,
     pub rendering_context: Rc<OffscreenRenderingContext>,
-    // pub rendering_context: Rc<WindowRenderingContext>,
-    pub webviews: RefCell<IndexMap<WebViewId, WebView>>,
 }
 impl ServoState {
     pub fn rect(&self) -> Box2D<i32, DevicePixel> {
@@ -114,74 +108,115 @@ impl ServoState {
         )
     }
 }
-impl ::servo::WebViewDelegate for ServoState {
-    fn notify_new_frame_ready(&self, _: WebView) {
-        // self.window.request_redraw();
+
+struct IcedState {
+    app: components::App,
+    queue: wgpu::Queue,
+    device: wgpu::Device,
+    surface: wgpu::Surface<'static>,
+    format: wgpu::TextureFormat,
+    renderer: Renderer,
+
+    events: Vec<Event>,
+    messages: Vec<Message>,
+
+    cursor: mouse::Cursor,
+    cache: user_interface::Cache,
+    viewport: Viewport,
+    modifiers: ModifiersState,
+    resized: bool,
+}
+
+#[derive(Clone, Debug)]
+enum UserEvent {
+    Wake,
+    NewFrameReady,
+    Message(Message),
+}
+
+#[derive(Clone)]
+pub struct Proxy(winit::event_loop::EventLoopProxy<UserEvent>);
+impl Proxy {
+    fn new(event_loop: &EventLoop<UserEvent>) -> Self {
+        Self(event_loop.create_proxy())
+    }
+}
+impl EventLoopWaker for Proxy {
+    fn clone_box(&self) -> Box<dyn EventLoopWaker> {
+        Box::new(Self(self.0.clone()))
+    }
+    fn wake(&self) {
+        if let Err(error) = self.0.send_event(UserEvent::Wake) {
+            warn!(?error, "Failed to wake event loop");
+        }
+    }
+}
+/// Listen to events originating from the WebView.
+/// Must be attached to the WebView uppon creation.
+impl ::servo::WebViewDelegate for Proxy {
+    #[tracing::instrument(skip_all)]
+    fn notify_new_frame_ready(&self, webview: WebView) {
+        let event = UserEvent::Message(Message::WebViewFrame(webview.id()));
+        if let Err(error) = self.0.send_event(event) {
+            warn!(?error, "Failed to notify new frame ready");
+        } else {
+            info!("notify new frame.")
+        }
     }
 }
 
+pub fn winit_size_to_euclid_size<T>(size: PhysicalSize<T>) -> Size2D<T, DevicePixel> {
+    Size2D::new(size.width, size.height)
+}
+
 enum Runner {
-    Initial(Waker),
+    Initial(Proxy),
     Ready { state: State },
 }
 
 impl Runner {
-    fn new(event_loop: &EventLoop<WakerEvent>) -> Self {
-        Self::Initial(Waker::new(event_loop))
+    fn new(event_loop: &EventLoop<UserEvent>) -> Self {
+        Self::Initial(Proxy::new(event_loop))
+    }
+    fn servo_init(window: &Arc<Window>, proxy: &mut Proxy) -> Rc<ServoState> {
+        // Initial window size
+        let inner_size = window.inner_size();
+        let size = PhysicalSize::new(inner_size.width, inner_size.height);
+
+        let display_handle = window.display_handle().unwrap();
+        let window_handle = window.window_handle().unwrap();
+
+        let rendering_context =
+            Rc::new(WindowRenderingContext::new(display_handle, window_handle, size).unwrap());
+        let rendering_context = Rc::new(WindowRenderingContext::offscreen_context(
+            &rendering_context,
+            size,
+        ));
+        let _ = rendering_context.make_current();
+
+        let servo = ServoBuilder::default()
+            .event_loop_waker(Box::new(proxy.clone()))
+            .build();
+        servo.setup_logging();
+
+        Rc::new(ServoState {
+            window: window.clone(),
+            servo,
+            rendering_context,
+        })
     }
 }
-impl ApplicationHandler<WakerEvent> for Runner {
+impl ApplicationHandler<UserEvent> for Runner {
+    #[tracing::instrument(skip_all)]
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Self::Initial(waker) = self {
+        if let Self::Initial(proxy) = self {
             // Create headless window for servo.
             let window = Arc::new(
                 event_loop
                     .create_window(winit::window::WindowAttributes::default())
                     .expect("Create invisible servo window"),
             );
-
-            // Initial window size
-            let inner_size = window.inner_size();
-            let size = PhysicalSize::new(inner_size.width, inner_size.height);
-
-            let display_handle = window.display_handle().unwrap();
-            let window_handle = window.window_handle().unwrap();
-
-            let rendering_context =
-                Rc::new(WindowRenderingContext::new(display_handle, window_handle, size).unwrap());
-            let rendering_context = Rc::new(WindowRenderingContext::offscreen_context(
-                &rendering_context,
-                size,
-            ));
-            let _ = rendering_context.make_current();
-
-            let servo = ServoBuilder::default()
-                .event_loop_waker(Box::new(waker.clone()))
-                .build();
-            servo.setup_logging();
-
-            let servo_state = Rc::new(ServoState {
-                window: window.clone(),
-                servo,
-                rendering_context,
-                webviews: Default::default(),
-            });
-            // Make a new WebView and assign the `AppState` as the delegate.
-            // let url = Url::parse("https://demo.servo.org/").expect("Guaranteed by argument");
-            let url = Url::parse("https://elrumordelaluz.github.io/reshake/")
-                .expect("Guaranteed by argument");
-
-            let webview =
-                WebViewBuilder::new(&servo_state.servo, servo_state.rendering_context.clone())
-                    .url(url)
-                    .hidpi_scale_factor(Scale::new(window.clone().scale_factor() as f32))
-                    .delegate(servo_state.clone())
-                    .build();
-
-            servo_state
-                .webviews
-                .borrow_mut()
-                .insert(webview.id(), webview);
+            let servo_state = Runner::servo_init(&window, proxy);
 
             let physical_size = window.inner_size();
             let viewport = Viewport::with_physical_size(
@@ -266,7 +301,7 @@ impl ApplicationHandler<WakerEvent> for Runner {
             };
 
             // Initialize scene and GUI controls
-            let app = components::App::new(servo_state.clone());
+            let app = components::App::new(servo_state.clone(), proxy);
 
             // You should change this if you want to render continuously
             event_loop.set_control_flow(ControlFlow::Wait);
@@ -277,7 +312,10 @@ impl ApplicationHandler<WakerEvent> for Runner {
                 renderer,
                 surface,
                 format,
+
                 events: Vec::new(),
+                messages: Vec::new(),
+
                 cursor: mouse::Cursor::Unavailable,
                 modifiers: ModifiersState::default(),
                 cache: user_interface::Cache::new(),
@@ -289,19 +327,35 @@ impl ApplicationHandler<WakerEvent> for Runner {
                 window,
                 iced_state,
                 servo_state: servo_state.clone(),
+                proxy: proxy.clone(),
             };
 
             *self = Self::Ready { state };
         }
     }
 
-    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, _event: WakerEvent) {
-        if let Self::Ready { state } = self {
-            state.servo_state.servo.spin_event_loop();
-        }
+    #[tracing::instrument(skip_all)]
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
+        let Self::Ready { state } = self else {
+            return;
+        };
+        // state.servo_state.servo.spin_event_loop();
+        debug!("UserEvent={:#?}", event);
+        match event {
+            UserEvent::Message(message) => {
+                match message {
+                    Message::WebViewFrame(id) => {
+                        state.iced_state.messages.push(Message::WebViewFrame(id));
+                    }
+                    _ => {}
+                };
+            }
+            _ => {}
+        };
     }
 
     /// Converts a winit window event into an iced event.
+    #[tracing::instrument(skip_all)]
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
@@ -311,6 +365,7 @@ impl ApplicationHandler<WakerEvent> for Runner {
         let Self::Ready { state } = self else {
             return;
         };
+        debug!("WindowEvent={:#?}", event);
 
         state.servo_state.servo.spin_event_loop();
 
@@ -325,20 +380,23 @@ impl ApplicationHandler<WakerEvent> for Runner {
                     surface,
                     format,
                     renderer,
+
                     events,
+                    messages,
+
                     viewport,
                     cursor,
                     modifiers,
                     cache,
                     resized,
                 },
+            ..
         } = state;
 
         // You should wire your own ticker logic if you will use widgets that must
         // notify the runtime concurrently.
         let waker = shell::Waker::noop();
 
-        // println!("{:#?}", &event);
         match event {
             WindowEvent::RedrawRequested => {
                 if *resized {
@@ -432,7 +490,8 @@ impl ApplicationHandler<WakerEvent> for Runner {
                     }
                     _ => {
                         // Try rendering again next frame.
-                        window.request_redraw();
+                        // BUG: Causes an update loop and freeze app.
+                        // window.request_redraw();
                     }
                 }
             }
@@ -446,7 +505,13 @@ impl ApplicationHandler<WakerEvent> for Runner {
                 *modifiers = new_modifiers.state();
             }
             WindowEvent::Resized(_) => {
+                let size = servo_state.window.inner_size();
+                servo_state
+                    .rendering_context
+                    .resize(PhysicalSize::new(size.width, size.height));
+
                 *resized = true;
+                window.request_redraw();
             }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -462,57 +527,42 @@ impl ApplicationHandler<WakerEvent> for Runner {
         }
 
         // If there are events pending
-        // debug!("{:#?}", events);
-        if !events.is_empty() {
-            // User Interface
-            // We process them
-            let mut interface = UserInterface::build(
-                app.view(),
-                viewport.logical_size(),
-                std::mem::take(cache),
-                renderer,
-            );
+        // if !events.is_empty() {
+        // User Interface
+        // We process them
+        let mut interface = UserInterface::build(
+            app.view(),
+            viewport.logical_size(),
+            std::mem::take(cache),
+            renderer,
+        );
 
-            let mut messages: shell::Bus<Message> = shell::Bus::new();
-            let _ = interface.update(&window, &waker, &events, *cursor, renderer, &mut messages);
+        let mut message_channel: shell::Bus<Message> = shell::Bus::new();
 
-            events.clear();
-            *cache = interface.into_cache();
+        let _ = interface.update(
+            &window,
+            &waker,
+            &events,
+            *cursor,
+            renderer,
+            &mut message_channel,
+        );
 
-            // update our UI with any messages
-            for message in messages {
-                app.update(message);
-            }
+        events.clear();
+        *cache = interface.into_cache();
 
+        // Push messages originating from user_event to channel
+        messages.iter().for_each(|e| {
+            message_channel.push(e.clone());
+        });
+        messages.clear();
+
+        // update our UI with any messages
+        for message in message_channel {
+            app.update(message);
             // and request a redraw
-            window.request_redraw();
         }
+        window.request_redraw();
+        // }
     }
-}
-
-#[derive(Clone)]
-struct Waker(winit::event_loop::EventLoopProxy<WakerEvent>);
-#[derive(Debug)]
-struct WakerEvent;
-
-impl Waker {
-    fn new(event_loop: &EventLoop<WakerEvent>) -> Self {
-        Self(event_loop.create_proxy())
-    }
-}
-
-impl EventLoopWaker for Waker {
-    fn clone_box(&self) -> Box<dyn EventLoopWaker> {
-        Box::new(Self(self.0.clone()))
-    }
-
-    fn wake(&self) {
-        if let Err(error) = self.0.send_event(WakerEvent) {
-            warn!(?error, "Failed to wake event loop");
-        }
-    }
-}
-
-pub fn winit_size_to_euclid_size<T>(size: PhysicalSize<T>) -> Size2D<T, DevicePixel> {
-    Size2D::new(size.width, size.height)
 }

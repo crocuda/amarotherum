@@ -1,68 +1,101 @@
-use crate::gui::draw;
-use crate::gui::view::{Message, ServoState};
+use crate::gui::tabs::{self, Tab};
+use crate::gui::view::{Proxy, ServoState};
 
-use iced::advanced::image::Id;
-use iced::widget::image::{FilterMethod, Handle, Image};
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
-use iced::{ContentFit, Length};
+use iced::{ContentFit, Length, Subscription};
 use iced_wgpu::Renderer;
 use iced_winit::core::{Color, Theme};
 
+// Images
+use iced::advanced::image::Id;
+use iced::widget::image::{FilterMethod, Handle, Image};
 use image::{DynamicImage, EncodableLayout, ImageReader, RgbaImage};
 
+// Servo
+use dpi::PhysicalSize;
+use euclid::{Box2D, Point2D, Scale, Size2D};
+use servo::{
+    DevicePixel, Servo, ServoBuilder, WebView, WebViewBuilder, WebViewDelegate, WebViewId,
+};
+use servo::{OffscreenRenderingContext, RenderingContext};
+use url::Url;
+
+// Globals
+use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use tracing::{debug, error, info, trace, warn};
-
 // Error
 use amarotherum_error::AmaroError;
 use miette::Result;
 
+#[derive(Clone, Debug)]
+pub enum Message {
+    WebViewFrame(WebViewId),
+    Keyboard,
+}
+
 pub struct App {
     servo_state: Rc<ServoState>,
-    last_frame: Handle,
+    proxy: Proxy,
+    // Tab list
+    tabs: Vec<Tab>,
+    // App state
+    selected_tab: Option<i32>,
 }
 
 impl App {
-    pub fn new(servo_state: Rc<ServoState>) -> Self {
+    pub fn new(servo_state: Rc<ServoState>, proxy: &Proxy) -> Self {
+        let default_tab = Tab::new(servo_state.clone(), proxy);
         Self {
             servo_state,
-            last_frame: Handle::from_bytes(""),
+            proxy: proxy.clone(),
+            tabs: vec![default_tab],
+            selected_tab: None,
         }
     }
 }
 
 impl App {
+    #[tracing::instrument(skip_all)]
     pub fn update(&mut self, message: Message) {
-        info!("update App");
+        debug!("update app");
+
+        // Update internal components
         match message {
-            Message::WebViewFrame => {
-                self.last_frame = draw::webview_to_image(&self.servo_state).unwrap();
+            Message::WebViewFrame(web) => {
+                self.tabs
+                    .iter_mut()
+                    .for_each(|e| e.update(self.servo_state.clone()));
             }
             _ => {}
         }
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn view(&self) -> impl Widget<Message, Theme, Renderer> {
-        debug!("draw App view");
-        let handler = self.last_frame.clone();
-        debug!("{:#?}", handler);
-
-        let image: Image<Handle> = Image::new(self.last_frame.clone())
-            // let image: Image<Handle> = Image::new("/home/anon/Pictures/megatron_pp.png")
-            .filter_method(FilterMethod::Nearest)
-            .content_fit(ContentFit::Fill)
-            .expand(true);
-
-        column![
-            container("buffline"),
-            container(image)
-                .align_top(Length::Fill)
-                .align_left(Length::Fill)
-                .style(container::bordered_box),
-            container("statusline"),
-            container("commandline"),
-            button("send").on_press(Message::WebViewFrame)
-        ]
+        debug!("view app");
+        if let Some(tab) = self.tabs.last() {
+            return column![
+                container("buffline"),
+                container(tab.view())
+                    .align_top(Length::Fill)
+                    .align_left(Length::Fill)
+                    .style(container::bordered_box),
+                container("statusline"),
+                container("commandline")
+            ];
+        } else {
+            return column![
+                container("buffline"),
+                container("empty")
+                    .align_top(Length::Fill)
+                    .align_left(Length::Fill)
+                    .style(container::bordered_box),
+                container("statusline"),
+                container("commandline"),
+            ];
+        }
     }
 }

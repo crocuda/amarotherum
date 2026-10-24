@@ -41,7 +41,7 @@ iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master", f
 ] }
 iced_wgpu = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "image",
-  "image-without-codecs",
+  # "image-without-codecs",
 ] }
 iced_renderer = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "image",
@@ -49,7 +49,7 @@ iced_renderer = { git = "https://github.com/iced-rs/iced.git", branch = "master"
 ] }
 iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "image",
-  "image-without-codecs",
+  # "image-without-codecs",
 ] }
 iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "advanced",
@@ -71,12 +71,9 @@ toml = "1.1.6"
 
 # rustls = { version = "*", features = ["aws-lc-rs"] }
 
-[patch.crates-io]
-# image = { git = "https://github.com/image-rs/image.git", version = "0.25.10" }
-
-[patch."https://github.com/iced-rs/iced.git"]
-iced_winit = { git = "https://github.com/crocuda/iced.git?rev=fool" }
-iced_wgpu = { git = "https://github.com/crocuda/iced.git?rev=fool" }
-iced = { git = "https://github.com/crocuda/iced.git?rev=fool" }
-iced_graphics = { git = "https://github.com/crocuda/iced.git?rev=fool" }
-iced_renderer = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+# [patch."https://github.com/iced-rs/iced.git"]
+# iced_winit = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+# iced_wgpu = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+# iced = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+# iced_graphics = { git = "https://github.com/crocuda/iced.git?rev=fool" }
+# iced_renderer = { git = "https://github.com/crocuda/iced.git?rev=fool" }
