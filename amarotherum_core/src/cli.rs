@@ -4,15 +4,15 @@ use tracing::info;
 use crate::gui;
 use crate::utils::trace;
 
-// Error
-use amarotherum_error::AmaroError;
-use miette::{IntoDiagnostic, Result};
-
 use clap::{Args, Parser, Subcommand, ValueEnum, ValueHint};
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+// Error
+use amarotherum_error::AmaroError;
+use miette::{IntoDiagnostic, Result};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -50,7 +50,7 @@ impl Cli {
         match cli.commands {
             Commands::Gui(gui_command) => match gui_command {
                 GuiCommands::Run => {
-                    gui::view::main()?;
+                    gui::main()?;
                 }
             },
         }

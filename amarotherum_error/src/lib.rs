@@ -1,4 +1,5 @@
 use bon::bon;
+use iced_winit::winit;
 use miette::{Diagnostic, Report, SourceOffset, SourceSpan};
 
 use thiserror::Error;
@@ -54,10 +55,10 @@ pub enum AmaroError {
     #[error(transparent)]
     #[diagnostic(code(winit::error))]
     WinitError(#[from] winit::error::EventLoopError),
+
     // #[error(transparent)]
     // #[diagnostic(code(bevy::error))]
     // BevyError(#[from] bevy::Error),
-    //
     #[error(transparent)]
     #[diagnostic(code(anyhow::error))]
     AnyhowError(#[from] anyhow::Error),

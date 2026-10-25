@@ -1,5 +1,4 @@
-use crate::gui::components::Message;
-use crate::gui::view::{Proxy, ServoState};
+use crate::gui::state::{Message, Proxy, ServoState};
 
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
 use iced::{ContentFit, Length};
@@ -9,21 +8,16 @@ use iced_winit::core::{Color, Theme};
 // Images
 use iced::advanced::image::Id;
 use iced::widget::image::{FilterMethod, Handle, Image};
-use image::{DynamicImage, EncodableLayout, ImageReader, RgbaImage};
+use image::DynamicImage;
 
 // Servo
-use dpi::PhysicalSize;
-use euclid::{Box2D, Point2D, Scale, Size2D};
-use servo::{
-    DevicePixel, Servo, ServoBuilder, WebView, WebViewBuilder, WebViewDelegate, WebViewId,
-};
+use euclid::Scale;
 use servo::{OffscreenRenderingContext, RenderingContext};
+use servo::{WebView, WebViewBuilder, WebViewId};
 use url::Url;
 
 // Globals
-use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 
 use tracing::{debug, error, info, trace, warn};
 // Error
@@ -62,8 +56,6 @@ impl Tab {
         if let Ok(image) = webview_to_image(self, state.clone()) {
             self.last_frame = image;
         }
-        // DANGER: redraw requests shouldn't originated from here.
-        let _ = state.window.request_redraw();
     }
     #[tracing::instrument(skip_all)]
     pub fn view(&self) -> impl Widget<Message, Theme, Renderer> + use<'_> {
@@ -88,10 +80,9 @@ impl Tab {
 #[tracing::instrument(skip_all)]
 pub fn webview_to_image(tab: &Tab, state: Rc<ServoState>) -> Result<Handle, AmaroError> {
     // debug!("LoadStatus={:#?}", tab.webview.load_status());
+    let _ = state.rendering_context.make_current();
     let _ = state.rendering_context.prepare_for_rendering();
     tab.webview.paint();
-
-    let _ = state.rendering_context.present();
 
     // Servo image
     let rect = state.rect();
@@ -102,6 +93,8 @@ pub fn webview_to_image(tab: &Tab, state: Rc<ServoState>) -> Result<Handle, Amar
 
     // println!("{:?}", bytes);
     let handler = Handle::from_rgba(w, h, bytes);
+
+    let _ = state.rendering_context.present();
 
     Ok(handler)
 }

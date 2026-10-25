@@ -20,11 +20,13 @@ tokio.workspace = true
 futures.workspace = true
 
 ## GUI
-winit.workspace = true
 # bevy.workspace = true
+# winit.workspace = true
+
 iced.workspace = true
 iced_winit.workspace = true
 iced_wgpu.workspace = true
+iced_futures.workspace = true
 
 ## Webview
 # iced_webview_v2.workspace = true
@@ -55,3 +57,4 @@ euclid = "0.22.13"
 url = "2.5.8"
 indexmap = { version = "2.14.2", features = ["serde"] }
 bon.workspace = true
+tokio-util = "0.7.20"

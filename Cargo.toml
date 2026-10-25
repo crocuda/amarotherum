@@ -35,8 +35,8 @@ futures = { version = "0.3.34" }
 # Iced
 raw-window-handle = { version = "0.6.2" }
 dpi = { version = "0.1.2" }
-winit = { version = "0.30.13", features = ["rwh_06"] }
 
+# winit = { version = "0.30.13", features = ["rwh_06"] }
 iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   # 0.15.0
   "image",
@@ -53,6 +53,7 @@ iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master"
   "image",
   # "image-without-codecs",
 ] }
+iced_futures = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "advanced",
   "tokio",
