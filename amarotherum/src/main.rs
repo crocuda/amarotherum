@@ -1,14 +1,12 @@
-use amarotherum_core::Cli;
+use amarotherum_core::cli::Cli;
 use std::{process::ExitCode, u8};
 
 // Error Handling
 use miette::{IntoDiagnostic, MietteHandlerOpts, Result, RgbColors};
 use tracing::trace;
 
-/**
-The binary entrypoint.
-This main function is the first function to be executed when launching the binary.
-*/
+/// The binary entrypoint.
+///This main function is the first function to be executed when launching the binary.
 
 // #[tokio::main]
 fn main() -> Result<()> {
@@ -19,10 +17,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/**
-The make handler functions is executed right after the main function
-to set up a verbose and colorful error/panic handler.
-*/
+///The make handler functions is executed right after the main function
+///to set up a verbose and colorful error/panic handler.
 pub fn make_handler() -> Result<()> {
     miette::set_hook(Box::new(|_| {
         Box::new(

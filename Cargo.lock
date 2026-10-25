@@ -131,12 +131,14 @@ name = "amarotherum_core"
 version = "0.1.1"
 dependencies = [
  "amarotherum_error",
+ "anyhow",
  "bon",
  "clap",
  "clap-verbosity-flag",
  "dpi 0.1.2",
  "env_logger",
  "euclid",
+ "futures",
  "iced",
  "iced_wgpu",
  "iced_winit",
@@ -161,6 +163,7 @@ dependencies = [
 name = "amarotherum_error"
 version = "0.1.1"
 dependencies = [
+ "anyhow",
  "bon",
  "log",
  "miette",

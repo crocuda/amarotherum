@@ -57,6 +57,10 @@ pub enum AmaroError {
     // #[error(transparent)]
     // #[diagnostic(code(bevy::error))]
     // BevyError(#[from] bevy::Error),
+    //
+    #[error(transparent)]
+    #[diagnostic(code(anyhow::error))]
+    AnyhowError(#[from] anyhow::Error),
 }
 
 /**
