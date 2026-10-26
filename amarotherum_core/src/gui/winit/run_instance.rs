@@ -10,6 +10,9 @@ use iced_program as program;
 use iced_runtime as runtime;
 use iced_winit::winit;
 
+use winit::event;
+use winit::event_loop::ControlFlow;
+
 use iced_winit::conversion;
 
 use iced_winit::Proxy;
@@ -52,9 +55,6 @@ pub async fn run_instance<P>(
     P: Program + 'static,
     P::Theme: theme::Base,
 {
-    use winit::event;
-    use winit::event_loop::ControlFlow;
-
     let mut window_manager = window::Manager::new();
     let mut is_window_opening = !is_daemon;
 

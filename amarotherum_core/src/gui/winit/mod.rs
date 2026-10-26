@@ -4,56 +4,36 @@
 mod action;
 mod build_user_interface;
 mod error;
+mod misc;
 mod proxy;
 mod window;
-
-mod misc;
-pub use misc::*;
 
 mod run_instance;
 use run_instance::run_instance;
 
-use iced_core as core;
 use iced_debug as debug;
-use iced_futures as futures;
-use iced_graphics as graphics;
 use iced_program as program;
 use iced_runtime as runtime;
 use iced_winit::winit;
 
-use iced_winit::clipboard;
 use iced_winit::conversion;
 
 use iced_winit::Error;
 use iced_winit::Proxy;
-use iced_winit::clipboard::Clipboard;
 
 use iced::Program;
 use iced_winit::core::backend;
-use iced_winit::core::mouse;
 use iced_winit::core::renderer;
-use iced_winit::core::shell;
 use iced_winit::core::theme;
-use iced_winit::core::time::{Duration, Instant};
-use iced_winit::core::widget::operation::{self, Operation};
-use iced_winit::core::{Point, Renderer, Size};
+use iced_winit::core::time::Instant;
+use iced_winit::futures::futures::Future;
 use iced_winit::futures::futures::channel::mpsc;
 use iced_winit::futures::futures::channel::oneshot;
 use iced_winit::futures::futures::task;
-use iced_winit::futures::futures::{Future, StreamExt};
 use iced_winit::futures::subscription;
 use iced_winit::futures::{Executor, Runtime};
-use iced_winit::graphics::{Compositor, Shell, compositor};
-use iced_winit::runtime::font;
-use iced_winit::runtime::image;
-use iced_winit::runtime::system;
-use iced_winit::runtime::user_interface::{self, UserInterface};
 use iced_winit::runtime::{Action, Task};
 
-use rustc_hash::FxHashMap;
-use std::borrow::Cow;
-use std::mem::ManuallyDrop;
-use std::slice;
 use std::sync::Arc;
 
 #[derive(Debug)]

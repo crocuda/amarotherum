@@ -1,4 +1,5 @@
 mod components;
+mod runner;
 pub mod state;
 mod winit;
 
@@ -7,7 +8,6 @@ mod winit;
 
 /// Launch the event loop.
 pub fn main() -> anyhow::Result<()> {
-    winit::run(components::App);
-
+    winit::run(components::App::new());
     Ok(())
 }
