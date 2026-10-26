@@ -1,47 +1,42 @@
+use super::action::{run_action, update};
+use super::build_user_interface::{build_user_interface, build_user_interfaces};
+use super::misc::run_clipboard;
+use super::window;
+use super::{Control, Event};
+
 use iced_core as core;
 use iced_debug as debug;
-use iced_futures as futures;
-use iced_graphics as graphics;
 use iced_program as program;
 use iced_runtime as runtime;
 use iced_winit::winit;
 
-use iced_winit::clipboard;
 use iced_winit::conversion;
 
-use iced_winit::Error;
 use iced_winit::Proxy;
 use iced_winit::clipboard::Clipboard;
 
 use iced::Program;
+use iced_winit::core::Renderer;
 use iced_winit::core::backend;
-use iced_winit::core::mouse;
 use iced_winit::core::renderer;
 use iced_winit::core::shell;
 use iced_winit::core::theme;
 use iced_winit::core::time::{Duration, Instant};
-use iced_winit::core::widget::operation::{self, Operation};
-use iced_winit::core::{Point, Renderer, Size};
+use iced_winit::futures::Runtime;
 use iced_winit::futures::futures::channel::mpsc;
 use iced_winit::futures::futures::channel::oneshot;
-use iced_winit::futures::futures::task;
 use iced_winit::futures::futures::{Future, StreamExt};
 use iced_winit::futures::subscription;
-use iced_winit::futures::{Executor, Runtime};
 use iced_winit::graphics::{Compositor, Shell, compositor};
-use iced_winit::runtime::font;
-use iced_winit::runtime::image;
-use iced_winit::runtime::system;
-use iced_winit::runtime::user_interface::{self, UserInterface};
-use iced_winit::runtime::{Action, Task};
+use iced_winit::runtime::Action;
+use iced_winit::runtime::user_interface::{self};
 
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::mem::ManuallyDrop;
 use std::slice;
-use std::sync::Arc;
 
-async fn run_instance<P>(
+pub async fn run_instance<P>(
     mut program: program::Instance<P>,
     mut runtime: Runtime<P::Executor, Proxy<P::Message>, Action<P::Message>>,
     mut proxy: Proxy<P::Message>,
@@ -798,81 +793,4 @@ async fn run_instance<P>(
     }
 
     let _ = ManuallyDrop::into_inner(user_interfaces);
-}
-
-/// Builds a window's [`UserInterface`] for the [`Program`].
-fn build_user_interface<'a, P: Program>(
-    program: &'a program::Instance<P>,
-    cache: user_interface::Cache,
-    renderer: &mut P::Renderer,
-    size: Size,
-    id: window::Id,
-) -> UserInterface<'a, P::Message, P::Theme, P::Renderer>
-where
-    P::Theme: theme::Base,
-{
-    let view_span = debug::view(id);
-    let view = program.view(id);
-    view_span.finish();
-
-    let layout_span = debug::layout(id);
-    let user_interface = UserInterface::build(view, size, cache, renderer);
-    layout_span.finish();
-
-    user_interface
-}
-
-fn update<P: Program, E: Executor>(
-    program: &mut program::Instance<P>,
-    runtime: &mut Runtime<E, Proxy<P::Message>, Action<P::Message>>,
-    messages: &mut shell::Bus<P::Message>,
-) -> Vec<Action<P::Message>>
-where
-    P::Theme: theme::Base,
-{
-    use futures::futures;
-
-    let mut actions = Vec::new();
-    let mut outputs = Vec::new();
-
-    while !messages.is_empty() {
-        for (message, _receipt) in messages.drain() {
-            let task = runtime.enter(|| program.update(message));
-
-            if let Some(mut stream) = runtime::task::into_stream(task) {
-                let waker = futures::task::noop_waker_ref();
-                let mut context = futures::task::Context::from_waker(waker);
-
-                // Run immediately available actions synchronously (e.g. widget operations)
-                loop {
-                    match runtime.enter(|| stream.poll_next_unpin(&mut context)) {
-                        futures::task::Poll::Ready(Some(Action::Output(output))) => {
-                            outputs.push(output);
-                        }
-                        futures::task::Poll::Ready(Some(action)) => {
-                            actions.push(action);
-                        }
-                        futures::task::Poll::Ready(None) => {
-                            break;
-                        }
-                        futures::task::Poll::Pending => {
-                            runtime.run(stream);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        for output in outputs.drain(..) {
-            let _ = messages.push(output);
-        }
-    }
-
-    let subscription = runtime.enter(|| program.subscription());
-    let recipes = subscription::into_recipes(subscription.map(Action::Output));
-
-    runtime.track(recipes);
-
-    actions
 }
