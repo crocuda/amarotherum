@@ -11,6 +11,8 @@ edition = "2024"
 # Error
 amarotherum_error = { path = "../amarotherum_error" }
 miette = { workspace = true, features = ["fancy"] }
+thiserror.workspace = true
+
 anyhow.workspace = true
 tracing = { workspace = true, features = ["async-await", "log"] }
 log.workspace = true
@@ -27,6 +29,11 @@ iced.workspace = true
 iced_winit.workspace = true
 iced_wgpu.workspace = true
 iced_futures.workspace = true
+iced_debug.workspace = true
+iced_program.workspace = true
+iced_runtime.workspace = true
+iced_graphics.workspace = true
+iced_core.workspace = true
 
 ## Webview
 # iced_webview_v2.workspace = true
@@ -58,3 +65,4 @@ url = "2.5.8"
 indexmap = { version = "2.14.2", features = ["serde"] }
 bon.workspace = true
 tokio-util = "0.7.20"
+rustc-hash = "2.1.3"

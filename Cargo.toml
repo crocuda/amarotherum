@@ -54,6 +54,10 @@ iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master"
   # "image-without-codecs",
 ] }
 iced_futures = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+iced_debug = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+iced_program = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+iced_runtime = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+iced_core = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "advanced",
   "tokio",

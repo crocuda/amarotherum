@@ -24,6 +24,7 @@
 
 use crate::gui::state::{IcedState, Message, Proxy, RendererState, ServoState, UserEvent};
 
+use futures::channel::mpsc::UnboundedSender;
 use iced_winit::conversion;
 use iced_winit::core::mouse;
 use iced_winit::core::shell;
@@ -65,14 +66,12 @@ pub fn main() -> anyhow::Result<()> {
     let mut runner = Runner::new(&event_loop);
     // let mut runner_b = Runner::new(&event_loop);
 
-    event_loop.run_app(&mut runner).unwrap();
 
     Ok(())
 }
-//
 
-/// The global state.
-pub struct State {
+
+struct Runner<Message: 'static> {
     /// Iced and Servo need their own handler of the same window,
     /// so we put it in an Arc.
     window: Arc<Window>,
@@ -86,43 +85,26 @@ pub struct State {
     /// The servo_state need to be accessed to draw frames.
     pub servo_state: Rc<ServoState>,
 }
-impl State {
-    fn handle_key(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        code: KeyCode,
-        is_pressed: bool,
-    ) {
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            _ => {}
-        }
-    }
-}
 
-enum Runner {
-    Initial(Proxy),
-    Ready { state: State },
-}
-
-impl Runner {
+impl Runner<Message> {
     fn new(event_loop: &EventLoop<UserEvent>) -> Self {
-        Self::Initial(Proxy::new(event_loop))
+        // Self::Initial(Proxy::new(event_loop))
     }
     // fn runtime() -> Runtime<Executor, Message, Action> {
     //     let executor = tokio::runtime::Runtime::new()?;
     // }
-    fn executor() -> anyhow::Result<()> {
+    fn executor() -> anyhow::Result<
+        Runtime<iced_futures::backend::native::tokio::Executor, UnboundedSender<Message>, Message>,
+    > {
         // Replace tokio support with std.
         // let executor = iced_futures::backend::native::thread_pool::Executor::new()?;
         let executor = iced_futures::backend::native::tokio::Executor::new()?;
-
         let (sender, _receiver) = futures::channel::mpsc::unbounded::<Message>();
         let runtime = iced_futures::Runtime::new(executor, sender);
-        Ok(())
+        Ok(runtime)
     }
 }
-impl ApplicationHandler<UserEvent> for Runner {
+impl<Message> ApplicationHandler<UserEvent> for Runner<Message> {
     #[tracing::instrument(skip_all)]
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         // You should change this if you want to render continuously
@@ -137,6 +119,8 @@ impl ApplicationHandler<UserEvent> for Runner {
             );
             // Pass required window/display handlers to servo.
             let servo_state = ServoState::new(&window, proxy);
+
+            let executor = self.executor()
             let render_state =
                 futures::executor::block_on(RendererState::new(&window, event_loop)).unwrap();
 
