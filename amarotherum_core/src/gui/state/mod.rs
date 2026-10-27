@@ -1,12 +1,9 @@
-mod iced_state;
-mod renderer_state;
 mod servo_state;
-
-pub use iced_state::IcedState;
-pub use renderer_state::RendererState;
 pub use servo_state::ServoState;
 
 // Winit
+use iced::Event;
+use iced_winit::futures::Runtime;
 use iced_winit::winit;
 use winit::{
     event_loop::{ControlFlow, EventLoop},
@@ -27,6 +24,7 @@ use tracing::{debug, error, info, trace, warn};
 #[derive(Clone, Debug)]
 pub enum Message {
     Tick,
+    WindowCreated { window: Arc<winit::window::Window> },
     WebViewFrame(WebViewId),
     Keyboard,
 }
@@ -47,8 +45,6 @@ pub struct State {
     /// through the event loop.
     pub proxy: Proxy,
 
-    iced_state: IcedState,
-    render_state: RendererState,
     /// The servo_state need to be accessed to draw frames.
     pub servo_state: Rc<ServoState>,
 }
@@ -84,4 +80,19 @@ impl ::servo::WebViewDelegate for Proxy {
             info!("notify new frame.")
         }
     }
+}
+
+pub fn runtime() -> anyhow::Result<
+    Runtime<
+        iced_futures::backend::native::tokio::Executor,
+        futures::channel::mpsc::UnboundedSender<Message>,
+        Message,
+    >,
+> {
+    // Replace tokio support with std.
+    // let executor = iced_futures::backend::native::thread_pool::Executor::new()?;
+    let executor = iced_futures::backend::native::tokio::Executor::new()?;
+    let (sender, _receiver) = futures::channel::mpsc::unbounded::<Message>();
+    let runtime = iced_futures::Runtime::new(executor, sender);
+    Ok(runtime)
 }

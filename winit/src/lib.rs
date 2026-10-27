@@ -4,35 +4,29 @@
 mod action;
 mod build_user_interface;
 mod error;
-mod misc;
-mod proxy;
 mod window;
 
-mod run_instance;
-use run_instance::run_instance;
+mod misc;
 
-use iced_debug as debug;
-use iced_program as program;
-use iced_runtime as runtime;
-use iced_winit::winit;
-
-use iced_winit::conversion;
-
-use iced_winit::Error;
+// mod proxy;
+// pub use proxy::Proxy;
 use iced_winit::Proxy;
 
-use iced::Program;
-use iced_winit::core::backend;
-use iced_winit::core::renderer;
+mod run;
+pub use run::run;
+
+use iced_winit::conversion;
+use iced_winit::winit;
+
+use iced_winit::Error;
+
 use iced_winit::core::theme;
 use iced_winit::core::time::Instant;
 use iced_winit::futures::futures::Future;
 use iced_winit::futures::futures::channel::mpsc;
 use iced_winit::futures::futures::channel::oneshot;
 use iced_winit::futures::futures::task;
-use iced_winit::futures::subscription;
-use iced_winit::futures::{Executor, Runtime};
-use iced_winit::runtime::{Action, Task};
+use iced_winit::runtime::Action;
 
 use std::sync::Arc;
 
@@ -77,6 +71,90 @@ struct Runner<Message: 'static> {
     #[cfg(target_arch = "wasm32")]
     canvas: Option<web_sys::HtmlCanvasElement>,
 }
+
+impl<Message> winit::application::ApplicationHandler<Action<Message>> for Runner<Message> {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if let Some(sender) = self.system_theme.take() {
+            let _ = sender.send(
+                event_loop
+                    .system_theme()
+                    .map(conversion::theme_mode)
+                    .unwrap_or_default(),
+            );
+        }
+    }
+
+    fn new_events(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        self.process_event(
+            event_loop,
+            Event::EventLoopAwakened(winit::event::Event::NewEvents(cause)),
+        );
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        #[cfg(target_os = "windows")]
+        let is_move_or_resize = matches!(
+            event,
+            winit::event::WindowEvent::Resized(_) | winit::event::WindowEvent::Moved(_)
+        );
+
+        self.process_event(
+            event_loop,
+            Event::EventLoopAwakened(winit::event::Event::WindowEvent { window_id, event }),
+        );
+
+        // TODO: Remove when unnecessary
+        // On Windows, we emulate an `AboutToWait` event after every `Resized` event
+        // since the event loop does not resume during resize interaction.
+        // More details: https://github.com/rust-windowing/winit/issues/3272
+        #[cfg(target_os = "windows")]
+        {
+            if is_move_or_resize {
+                self.process_event(
+                    event_loop,
+                    Event::EventLoopAwakened(winit::event::Event::AboutToWait),
+                );
+            }
+        }
+    }
+
+    fn user_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        action: Action<Message>,
+    ) {
+        self.process_event(
+            event_loop,
+            Event::EventLoopAwakened(winit::event::Event::UserEvent(action)),
+        );
+    }
+
+    fn received_url(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, url: String) {
+        self.process_event(
+            event_loop,
+            Event::EventLoopAwakened(winit::event::Event::PlatformSpecific(
+                winit::event::PlatformSpecific::MacOS(winit::event::MacOS::ReceivedUrl(url)),
+            )),
+        );
+    }
+
+    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        self.process_event(
+            event_loop,
+            Event::EventLoopAwakened(winit::event::Event::AboutToWait),
+        );
+    }
+}
+
 impl<Message> Runner<Message> {
     fn process_event(
         &mut self,
@@ -233,198 +311,5 @@ impl<Message> Runner<Message> {
                 }
             };
         }
-    }
-}
-impl<Message> winit::application::ApplicationHandler<Action<Message>> for Runner<Message> {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Some(sender) = self.system_theme.take() {
-            let _ = sender.send(
-                event_loop
-                    .system_theme()
-                    .map(conversion::theme_mode)
-                    .unwrap_or_default(),
-            );
-        }
-    }
-
-    fn new_events(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        cause: winit::event::StartCause,
-    ) {
-        self.process_event(
-            event_loop,
-            Event::EventLoopAwakened(winit::event::Event::NewEvents(cause)),
-        );
-    }
-
-    fn window_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
-    ) {
-        #[cfg(target_os = "windows")]
-        let is_move_or_resize = matches!(
-            event,
-            winit::event::WindowEvent::Resized(_) | winit::event::WindowEvent::Moved(_)
-        );
-
-        self.process_event(
-            event_loop,
-            Event::EventLoopAwakened(winit::event::Event::WindowEvent { window_id, event }),
-        );
-
-        // TODO: Remove when unnecessary
-        // On Windows, we emulate an `AboutToWait` event after every `Resized` event
-        // since the event loop does not resume during resize interaction.
-        // More details: https://github.com/rust-windowing/winit/issues/3272
-        #[cfg(target_os = "windows")]
-        {
-            if is_move_or_resize {
-                self.process_event(
-                    event_loop,
-                    Event::EventLoopAwakened(winit::event::Event::AboutToWait),
-                );
-            }
-        }
-    }
-
-    fn user_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        action: Action<Message>,
-    ) {
-        self.process_event(
-            event_loop,
-            Event::EventLoopAwakened(winit::event::Event::UserEvent(action)),
-        );
-    }
-
-    fn received_url(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, url: String) {
-        self.process_event(
-            event_loop,
-            Event::EventLoopAwakened(winit::event::Event::PlatformSpecific(
-                winit::event::PlatformSpecific::MacOS(winit::event::MacOS::ReceivedUrl(url)),
-            )),
-        );
-    }
-
-    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.process_event(
-            event_loop,
-            Event::EventLoopAwakened(winit::event::Event::AboutToWait),
-        );
-    }
-}
-
-/// Runs a [`Program`] with the provided settings.
-pub fn run<P>(program: P) -> Result<(), Error>
-where
-    P: Program + 'static,
-    P::Theme: theme::Base,
-{
-    use winit::event_loop::EventLoop;
-
-    let boot_span = debug::boot();
-    let settings = program.settings();
-    let window_settings = program.window();
-
-    let event_loop = EventLoop::with_user_event()
-        .build()
-        .expect("Create event loop");
-
-    let backend_settings = backend::Settings::from(&settings);
-    let renderer_settings = renderer::Settings::from(&settings);
-    let display_handle = event_loop.owned_display_handle();
-
-    let (proxy, worker) = Proxy::new(event_loop.create_proxy());
-
-    #[cfg(feature = "debug")]
-    {
-        let proxy = proxy.clone();
-
-        debug::on_hotpatch(move || {
-            proxy.send_action(Action::Reload);
-        });
-    }
-
-    let mut runtime = {
-        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
-        executor.spawn(worker);
-
-        Runtime::new(executor, proxy.clone())
-    };
-
-    let (program, task) = runtime.enter(|| program::Instance::new(program));
-    let is_daemon = window_settings.is_none();
-
-    let task = if let Some(window_settings) = window_settings {
-        let mut task = Some(task);
-
-        let (_id, open) = runtime::window::open(window_settings);
-
-        open.then(move |_| task.take().unwrap_or_else(Task::none))
-    } else {
-        task
-    };
-
-    if let Some(stream) = runtime::task::into_stream(task) {
-        runtime.run(stream);
-    }
-
-    runtime.track(subscription::into_recipes(
-        runtime.enter(|| program.subscription().map(Action::Output)),
-    ));
-
-    let (event_sender, event_receiver) = mpsc::unbounded();
-    let (control_sender, control_receiver) = mpsc::unbounded();
-    let (system_theme_sender, system_theme_receiver) = oneshot::channel();
-
-    let instance: std::pin::Pin<Box<dyn Future<Output = ()>>> = Box::pin(run_instance::<P>(
-        program,
-        runtime,
-        proxy.clone(),
-        event_receiver,
-        control_sender,
-        display_handle,
-        is_daemon,
-        backend_settings,
-        renderer_settings,
-        settings.fonts,
-        system_theme_receiver,
-    ));
-
-    let context = task::Context::from_waker(task::noop_waker_ref());
-
-    let runner = Runner {
-        instance,
-        context,
-        id: settings.id,
-        sender: event_sender,
-        receiver: control_receiver,
-        error: None,
-        system_theme: Some(system_theme_sender),
-
-        #[cfg(target_arch = "wasm32")]
-        canvas: None,
-    };
-
-    boot_span.finish();
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let mut runner = runner;
-        let _ = event_loop.run_app(&mut runner);
-
-        runner.error.map(Err).unwrap_or(Ok(()))
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::platform::web::EventLoopExtWebSys;
-        let _ = event_loop.spawn_app(runner);
-
-        Ok(())
     }
 }

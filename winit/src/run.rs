@@ -2,7 +2,7 @@ use super::action::{run_action, update};
 use super::build_user_interface::{build_user_interface, build_user_interfaces};
 use super::misc::run_clipboard;
 use super::window;
-use super::{Control, Event};
+use super::{Control, Event, Runner};
 
 use iced_core as core;
 use iced_debug as debug;
@@ -19,26 +19,138 @@ use iced_winit::Proxy;
 use iced_winit::clipboard::Clipboard;
 
 use iced::Program;
+use iced_winit::Error;
 use iced_winit::core::Renderer;
 use iced_winit::core::backend;
 use iced_winit::core::renderer;
 use iced_winit::core::shell;
 use iced_winit::core::theme;
 use iced_winit::core::time::{Duration, Instant};
-use iced_winit::futures::Runtime;
 use iced_winit::futures::futures::channel::mpsc;
 use iced_winit::futures::futures::channel::oneshot;
+use iced_winit::futures::futures::task;
 use iced_winit::futures::futures::{Future, StreamExt};
 use iced_winit::futures::subscription;
+use iced_winit::futures::{Executor, Runtime};
 use iced_winit::graphics::{Compositor, Shell, compositor};
-use iced_winit::runtime::Action;
 use iced_winit::runtime::user_interface::{self};
+use iced_winit::runtime::{Action, Task};
 
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::mem::ManuallyDrop;
 use std::slice;
 
+/// Runs a [`Program`] with the provided settings.
+pub fn run<P>(program: P) -> Result<(), Error>
+where
+    P: Program + ExtraEvent + 'static,
+    P::Theme: theme::Base,
+{
+    use winit::event_loop::EventLoop;
+
+    let boot_span = debug::boot();
+    let settings = program.settings();
+    let window_settings = program.window();
+
+    let event_loop = EventLoop::with_user_event()
+        .build()
+        .expect("Create event loop");
+
+    let backend_settings = backend::Settings::from(&settings);
+    let renderer_settings = renderer::Settings::from(&settings);
+    let display_handle = event_loop.owned_display_handle();
+
+    let (proxy, worker) = Proxy::new(event_loop.create_proxy());
+
+    #[cfg(feature = "debug")]
+    {
+        let proxy = proxy.clone();
+
+        debug::on_hotpatch(move || {
+            proxy.send_action(Action::Reload);
+        });
+    }
+
+    let mut runtime = {
+        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
+        executor.spawn(worker);
+
+        Runtime::new(executor, proxy.clone())
+    };
+
+    let (program, task) = runtime.enter(|| program::Instance::new(program));
+    let is_daemon = window_settings.is_none();
+
+    let task = if let Some(window_settings) = window_settings {
+        let mut task = Some(task);
+
+        let (_id, open) = runtime::window::open(window_settings);
+
+        open.then(move |_| task.take().unwrap_or_else(Task::none))
+    } else {
+        task
+    };
+
+    if let Some(stream) = runtime::task::into_stream(task) {
+        runtime.run(stream);
+    }
+
+    runtime.track(subscription::into_recipes(
+        runtime.enter(|| program.subscription().map(Action::Output)),
+    ));
+
+    let (event_sender, event_receiver) = mpsc::unbounded();
+    let (control_sender, control_receiver) = mpsc::unbounded();
+    let (system_theme_sender, system_theme_receiver) = oneshot::channel();
+
+    let instance: std::pin::Pin<Box<dyn Future<Output = ()>>> = Box::pin(run_instance::<P>(
+        program,
+        runtime,
+        proxy.clone(),
+        event_receiver,
+        control_sender,
+        display_handle,
+        is_daemon,
+        backend_settings,
+        renderer_settings,
+        settings.fonts,
+        system_theme_receiver,
+    ));
+
+    let context = task::Context::from_waker(task::noop_waker_ref());
+
+    let runner = Runner {
+        instance,
+        context,
+        id: settings.id,
+        sender: event_sender,
+        receiver: control_receiver,
+        error: None,
+        system_theme: Some(system_theme_sender),
+
+        #[cfg(target_arch = "wasm32")]
+        canvas: None,
+    };
+
+    boot_span.finish();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut runner = runner;
+        let _ = event_loop.run_app(&mut runner);
+
+        runner.error.map(Err).unwrap_or(Ok(()))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::EventLoopExtWebSys;
+        let _ = event_loop.spawn_app(runner);
+
+        Ok(())
+    }
+}
 pub async fn run_instance<P>(
     mut program: program::Instance<P>,
     mut runtime: Runtime<P::Executor, Proxy<P::Message>, Action<P::Message>>,
@@ -247,6 +359,12 @@ pub async fn run_instance<P>(
                         scale_factor: window.raw.scale_factor() as f32,
                     }),
                 ));
+
+                // MOST CLEAN HACK:
+                // Send the window through a user event (to pass handlers to servo)
+                use crate::gui::state::Message;
+                use std::sync::Arc;
+                runtime.send(P::Message::WindowCreated { window: window.raw });
 
                 let _ = on_open.send(id);
                 is_window_opening = false;

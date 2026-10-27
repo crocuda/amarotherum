@@ -4,7 +4,9 @@ use state::State;
 
 pub use iced_winit::core::window::{Event, Id, RedrawRequest, Settings};
 
-use iced_winit::Proxy;
+// use iced_winit::Proxy;
+use super::Proxy;
+
 use iced_winit::conversion;
 use iced_winit::core;
 use iced_winit::core::alignment;
