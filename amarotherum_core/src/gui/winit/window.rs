@@ -19,7 +19,9 @@ use iced_winit::core::theme;
 use iced_winit::core::time::Instant;
 use iced_winit::core::{Color, InputMethod, Padding, Point, Rectangle, Size, Text, Vector};
 use iced_winit::graphics::Compositor;
-use iced_winit::program::{self, Program};
+
+// use iced_winit::program::{self, Program};
+use crate::gui::program::{self, Program};
 
 use iced_winit::winit;
 use winit::dpi::{LogicalPosition, LogicalSize};

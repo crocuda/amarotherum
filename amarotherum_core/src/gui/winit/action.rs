@@ -5,7 +5,6 @@ use super::window;
 use iced_core as core;
 use iced_futures::futures;
 use iced_graphics as graphics;
-use iced_program as program;
 use iced_winit::winit;
 
 use iced_winit::conversion;
@@ -13,7 +12,10 @@ use iced_winit::conversion;
 use iced_winit::Proxy;
 use iced_winit::clipboard::Clipboard;
 
-use iced::Program;
+// use iced::Program;
+// use iced_program as program;
+use crate::gui::program::{self, Program};
+
 use iced_futures::futures::StreamExt;
 use iced_winit::core::mouse;
 use iced_winit::core::renderer;

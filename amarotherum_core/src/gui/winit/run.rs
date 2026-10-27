@@ -6,7 +6,6 @@ use super::{Control, Event, Runner};
 
 use iced_core as core;
 use iced_debug as debug;
-use iced_program as program;
 use iced_runtime as runtime;
 use iced_winit::winit;
 
@@ -18,7 +17,10 @@ use iced_winit::conversion;
 use iced_winit::Proxy;
 use iced_winit::clipboard::Clipboard;
 
-use iced::Program;
+// use iced::Program;
+// use iced_program as program;
+use crate::gui::program::{self, Program};
+
 use iced_winit::Error;
 use iced_winit::core::Renderer;
 use iced_winit::core::backend;
@@ -41,10 +43,13 @@ use std::borrow::Cow;
 use std::mem::ManuallyDrop;
 use std::slice;
 
+use crate::gui::components::ExtraMessage;
+use crate::gui::state::Message;
+
 /// Runs a [`Program`] with the provided settings.
 pub fn run<P>(program: P) -> Result<(), Error>
 where
-    P: Program + ExtraEvent + 'static,
+    P: Program + ExtraMessage<P::Message> + 'static,
     P::Theme: theme::Base,
 {
     use winit::event_loop::EventLoop;
@@ -164,7 +169,7 @@ pub async fn run_instance<P>(
     default_fonts: Vec<Cow<'static, [u8]>>,
     mut _system_theme: oneshot::Receiver<theme::Mode>,
 ) where
-    P: Program + 'static,
+    P: Program + ExtraMessage<P::Message> + 'static,
     P::Theme: theme::Base,
 {
     let mut window_manager = window::Manager::new();
@@ -362,9 +367,9 @@ pub async fn run_instance<P>(
 
                 // MOST CLEAN HACK:
                 // Send the window through a user event (to pass handlers to servo)
-                use crate::gui::state::Message;
-                use std::sync::Arc;
-                runtime.send(P::Message::WindowCreated { window: window.raw });
+                // use crate::gui::state::Message;
+                // use std::sync::Arc;
+                runtime.send(Action::Output(P::window_created(window.raw.clone())));
 
                 let _ = on_open.send(id);
                 is_window_opening = false;

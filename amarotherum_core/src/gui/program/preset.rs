@@ -1,4 +1,4 @@
-use crate::runtime::Task;
+use iced_runtime::Task;
 
 use std::borrow::Cow;
 use std::fmt;

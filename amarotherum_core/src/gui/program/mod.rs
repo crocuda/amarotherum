@@ -10,14 +10,14 @@ mod preset;
 
 pub use preset::Preset;
 
-use crate::core::renderer;
-use crate::core::text;
-use crate::core::theme;
-use crate::core::window;
-use crate::core::{Settings, Widget};
-use crate::futures::{Executor, Subscription};
-use crate::graphics::compositor;
-use crate::runtime::Task;
+use iced_core::renderer;
+use iced_core::text;
+use iced_core::theme;
+use iced_core::window;
+use iced_core::{Settings, Widget};
+use iced_futures::{Executor, Subscription};
+use iced_graphics::compositor;
+use iced_runtime::Task;
 
 /// An interactive, native, cross-platform, multi-windowed application.
 ///
@@ -49,7 +49,7 @@ pub trait Program: Sized {
 
     fn boot(&self) -> (Self::State, Task<Self::Message>);
 
-    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;
+    fn update(&mut self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;
 
     fn view<'a>(
         &self,
@@ -153,7 +153,11 @@ pub fn with_subscription<P: Program>(
         }
 
         #[inline]
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        fn update(
+            &mut self,
+            state: &mut Self::State,
+            message: Self::Message,
+        ) -> Task<Self::Message> {
             self.program.update(state, message)
         }
 
@@ -244,7 +248,11 @@ pub fn with_style<P: Program>(
         }
 
         #[inline]
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        fn update(
+            &mut self,
+            state: &mut Self::State,
+            message: Self::Message,
+        ) -> Task<Self::Message> {
             self.program.update(state, message)
         }
 
@@ -323,7 +331,11 @@ pub fn with_executor<P: Program, E: Executor>(
         }
 
         #[inline]
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        fn update(
+            &mut self,
+            state: &mut Self::State,
+            message: Self::Message,
+        ) -> Task<Self::Message> {
             self.program.update(state, message)
         }
 

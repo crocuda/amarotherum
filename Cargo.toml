@@ -29,7 +29,7 @@ raw-window-handle = { version = "0.6.2" }
 dpi = { version = "0.1.2" }
 
 # Compat deps
-winit = { version = "0.30.13", features = ["rwh_06"] }
+# winit = { version = "0.30.13", features = ["rwh_06"] }
 arboard = { version = "3.6", default-features = false }
 web-sys = "0.3.104"
 wasm-bindgen-futures = "0.4"
@@ -41,7 +41,7 @@ iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", feature
   "tokio",
   "linux-theme-detection",
   "image",
-  "image-without-codecs",
+  # "image-without-codecs",
   "tiny-skia",
 ] }
 iced_winit = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
@@ -54,7 +54,7 @@ iced_wgpu = { git = "https://github.com/iced-rs/iced.git", branch = "master", fe
 ] }
 iced_renderer = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "image",
-  "image-without-codecs",
+  # "image-without-codecs",
 ] }
 iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
   "image",
@@ -62,7 +62,7 @@ iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "master"
 ] }
 iced_futures = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced_debug = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
-iced_program = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
+# iced_program = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced_runtime = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced_core = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 rustc-hash = "2.1.3"
@@ -79,8 +79,7 @@ toml = "1.1.6"
 
 # rustls = { version = "*", features = ["aws-lc-rs"] }
 
-[patch."https://github.com/iced-rs/iced.git"]
-iced_program = { path = "./program" }
+# [patch."https://github.com/iced-rs/iced.git"]
 # iced_winit = { path = "./winit" }
 # iced_winit = { git = "https://github.com/crocuda/iced.git?rev=fool" }
 # iced_wgpu = { git = "https://github.com/crocuda/iced.git?rev=fool" }
@@ -88,41 +87,41 @@ iced_program = { path = "./program" }
 # iced_graphics = { git = "https://github.com/crocuda/iced.git?rev=fool" }
 # iced_renderer = { git = "https://github.com/crocuda/iced.git?rev=fool" }
 
-[workspace.package]
-version = "0.15.0-dev"
-authors = ["Héctor Ramón Jiménez <hector@hecrj.dev> + Anon"]
-edition = "2024"
-license = "GPL-2.0"
-repository = "https://github.com/iced-rs/iced"
-homepage = "https://iced.rs"
-categories = ["gui"]
-keywords = ["gui", "ui", "graphics", "interface", "widgets"]
-rust-version = "1.93"
-
-[workspace.lints.rust]
-rust_2018_idioms = { level = "deny", priority = -1 }
-missing_docs = "deny"
-unsafe_code = "deny"
-unused_results = "deny"
-
-[workspace.lints.clippy]
-type_complexity = "allow"
-map_entry = "allow"
-large_enum_variant = "allow"
-result_large_err = "allow"
-manual_filter = "allow"
-semicolon_if_nothing_returned = "deny"
-trivially_copy_pass_by_ref = "deny"
-default_trait_access = "deny"
-match_wildcard_for_single_variants = "deny"
-redundant_closure_for_method_calls = "deny"
-filter_map_next = "deny"
-manual_let_else = "deny"
-unused_async = "deny"
-from_over_into = "deny"
-needless_borrow = "deny"
-new_without_default = "deny"
-useless_conversion = "deny"
-
-[workspace.lints.rustdoc]
-broken_intra_doc_links = "forbid"
+# [workspace.package]
+# version = "0.15.0-dev"
+# authors = ["Héctor Ramón Jiménez <hector@hecrj.dev> + Anon"]
+# edition = "2024"
+# license = "GPL-2.0"
+# repository = "https://github.com/iced-rs/iced"
+# homepage = "https://iced.rs"
+# categories = ["gui"]
+# keywords = ["gui", "ui", "graphics", "interface", "widgets"]
+# rust-version = "1.93"
+#
+# [workspace.lints.rust]
+# rust_2018_idioms = { level = "deny", priority = -1 }
+# missing_docs = "deny"
+# unsafe_code = "deny"
+# unused_results = "deny"
+#
+# [workspace.lints.clippy]
+# type_complexity = "allow"
+# map_entry = "allow"
+# large_enum_variant = "allow"
+# result_large_err = "allow"
+# manual_filter = "allow"
+# semicolon_if_nothing_returned = "deny"
+# trivially_copy_pass_by_ref = "deny"
+# default_trait_access = "deny"
+# match_wildcard_for_single_variants = "deny"
+# redundant_closure_for_method_calls = "deny"
+# filter_map_next = "deny"
+# manual_let_else = "deny"
+# unused_async = "deny"
+# from_over_into = "deny"
+# needless_borrow = "deny"
+# new_without_default = "deny"
+# useless_conversion = "deny"
+#
+# [workspace.lints.rustdoc]
+# broken_intra_doc_links = "forbid"
