@@ -4,16 +4,14 @@
 mod action;
 mod build_user_interface;
 mod error;
+mod misc;
 mod window;
 
-mod misc;
+pub mod run;
 
 // mod proxy;
 // pub use proxy::Proxy;
 use iced_winit::Proxy;
-
-mod run;
-pub use run::run;
 
 use iced_winit::conversion;
 use iced_winit::winit;

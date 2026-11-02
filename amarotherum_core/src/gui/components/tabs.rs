@@ -1,4 +1,4 @@
-use crate::gui::state::{Message, Servo};
+use crate::gui::state::{Message, Servo, State};
 
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
 use iced::{ContentFit, Length, Task};
@@ -26,35 +26,46 @@ use std::sync::{Arc, RwLock};
 
 use tracing::{debug, error, info, trace, warn};
 // Error
-use amarotherum_error::AmaroError;
-use miette::Result;
+use amarotherum_error::{AmaroError, LibError};
+use miette::{Error, Result, miette};
 
 #[derive(Clone)]
 pub struct Tab {
-    servo: Rc<Servo>,
+    state: Rc<State>,
     webview: WebView,
     // last_frame: Arc<RwLock<Handle>>,
     last_frame: Option<Allocation>,
 }
 
 impl Tab {
-    pub fn new(servo: Rc<Servo>) -> Self {
+    pub fn try_new(state: Rc<State>) -> Result<Self> {
         let url = Url::parse("https://elrumordelaluz.github.io/reshake/").unwrap();
         // let url = Url::parse("https://demo.servo.org").expect("Guaranteed by argument");
-        let webview = WebViewBuilder::new(&servo.instance, servo.state.rendering_context.clone())
-            .url(url)
-            .hidpi_scale_factor(Scale::new(servo.state.window.clone().scale_factor() as f32))
-            .delegate(Rc::new(servo.state.clone()))
-            .build();
-
-        // let bytes = fs::read("/home/anon/Pictures/megatron_pp.png").unwrap();
-
-        Self {
-            servo,
-            webview,
-            // last_frame: Arc::new(RwLock::new(Handle::from_bytes(""))),
-            // last_frame: Handle::from_bytes(bytes),
-            last_frame: None,
+        let State { servo, proxy } = &*state;
+        if let Some(servo) = servo {
+            let mut webview =
+                WebViewBuilder::new(&servo.instance, servo.state.rendering_context.clone())
+                    .url(url)
+                    .hidpi_scale_factor(
+                        Scale::new(servo.state.window.clone().scale_factor() as f32),
+                    )
+                    .delegate(state.clone())
+                    .build();
+            // TEST: Load local image.
+            // let bytes = fs::read("/home/anon/Pictures/megatron_pp.png").unwrap();
+            Ok(Self {
+                state: state,
+                webview,
+                // last_frame: Arc::new(RwLock::new(Handle::from_bytes(""))),
+                // last_frame: Handle::from_bytes(bytes),
+                last_frame: None,
+            })
+        } else {
+            Err(LibError::builder()
+                .msg("Couldn't create tab")
+                .help("")
+                .build()
+                .into())
         }
     }
 }
@@ -62,16 +73,21 @@ impl Tab {
 impl Tab {
     #[tracing::instrument(skip_all)]
     pub fn update(&mut self, message: Message) -> iced_runtime::Task<Message> {
+        println!("{:#?}", message);
         match message {
-            Message::Tick => {
-                if let Ok(image) = webview_to_image(self, self.servo.clone()) {
+            Message::WebViewHasNewFrame(webview_id) => {
+                if webview_id != self.webview.id() {
+                    return Task::none();
+                }
+                if let Some(servo) = &self.state.servo
+                    && let Ok(image) = webview_to_image(self, servo.clone())
+                {
                     image
                     // *self.last_frame.write().unwrap() = image;
                 } else {
                     Task::none()
                 }
             }
-            Message::WebViewFrame(_) => Task::none(),
             Message::ImageAllocated(allocation) => {
                 self.last_frame = Some(allocation);
                 Task::none()
@@ -83,6 +99,8 @@ impl Tab {
     pub fn view<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
         debug!("view tab");
 
+        // TEST: Load local image.
+        // let image: Image<Handle> = Image::new("/home/anon/Pictures/megatron_pp.png")
         if let Some(allocation) = self.last_frame.clone() {
             let image: Image<Handle> = Image::new(allocation.handle())
                 .filter_method(FilterMethod::Nearest)
@@ -102,7 +120,6 @@ impl Tab {
                     .style(container::bordered_box),
             ]
         }
-        // let image: Image<Handle> = Image::new("/home/anon/Pictures/megatron_pp.png")
     }
 }
 

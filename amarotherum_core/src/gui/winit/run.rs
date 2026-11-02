@@ -38,6 +38,8 @@ use iced_winit::graphics::{Compositor, Shell, compositor};
 use iced_winit::runtime::user_interface::{self};
 use iced_winit::runtime::{Action, Task};
 
+use winit::event_loop::EventLoop;
+
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::mem::ManuallyDrop;
@@ -46,28 +48,25 @@ use std::slice;
 use crate::gui::components::ExtraMessage;
 use crate::gui::state::Message;
 
-/// Runs a [`Program`] with the provided settings.
-pub fn run<P>(program: P) -> Result<(), Error>
+pub fn create_runtime<P>(
+    program: P,
+) -> Result<
+    (
+        EventLoop<Action<P::Message>>,
+        Runtime<P::Executor, Proxy<P::Message>, Action<P::Message>>,
+        Proxy<P::Message>,
+    ),
+    Error,
+>
 where
-    P: Program + ExtraMessage<P::Message> + 'static,
+    P: Program + ExtraMessage<P::Message>,
     P::Theme: theme::Base,
 {
-    use winit::event_loop::EventLoop;
-
-    let boot_span = debug::boot();
-    let settings = program.settings();
-    let window_settings = program.window();
-
     let event_loop = EventLoop::with_user_event()
         .build()
         .expect("Create event loop");
 
-    let backend_settings = backend::Settings::from(&settings);
-    let renderer_settings = renderer::Settings::from(&settings);
-    let display_handle = event_loop.owned_display_handle();
-
     let (proxy, worker) = Proxy::new(event_loop.create_proxy());
-
     #[cfg(feature = "debug")]
     {
         let proxy = proxy.clone();
@@ -76,13 +75,32 @@ where
             proxy.send_action(Action::Reload);
         });
     }
-
-    let mut runtime = {
+    let runtime = {
         let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
         executor.spawn(worker);
 
         Runtime::new(executor, proxy.clone())
     };
+    Ok((event_loop, runtime, proxy))
+}
+/// Runs a [`Program`] with the provided settings.
+pub fn run<P>(
+    program: P,
+    event_loop: EventLoop<Action<P::Message>>,
+    mut runtime: Runtime<P::Executor, Proxy<P::Message>, Action<P::Message>>,
+    proxy: Proxy<P::Message>,
+) -> Result<(), Error>
+where
+    P: Program + ExtraMessage<P::Message> + 'static,
+    P::Theme: theme::Base,
+{
+    let boot_span = debug::boot();
+    let settings = program.settings();
+    let window_settings = program.window();
+
+    let backend_settings = backend::Settings::from(&settings);
+    let renderer_settings = renderer::Settings::from(&settings);
+    let display_handle = event_loop.owned_display_handle();
 
     let (program, task) = runtime.enter(|| program::Instance::new(program));
     let is_daemon = window_settings.is_none();

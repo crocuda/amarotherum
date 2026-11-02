@@ -41,11 +41,6 @@ pub struct ServoState {
     pub window: Arc<Window>,
     pub rendering_context: Rc<OffscreenRenderingContext>,
 }
-impl ::servo::WebViewDelegate for ServoState {
-    fn notify_new_frame_ready(&self, _: WebView) {
-        // self.window.request_redraw();
-    }
-}
 impl ServoState {
     pub fn rect(&self) -> Box2D<i32, DevicePixel> {
         let size = self.rendering_context.size();

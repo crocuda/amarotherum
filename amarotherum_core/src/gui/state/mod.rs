@@ -4,12 +4,16 @@ pub use servo_state::Servo;
 // Winit
 use iced::Event;
 use iced_core::image::Allocation;
+use iced_winit::Proxy;
 use iced_winit::futures::Runtime;
+use iced_winit::runtime::Action;
 use iced_winit::winit;
 use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
+
+use crate::gui::program::Program;
 
 // Servo
 use servo::{EventLoopWaker, WebView, WebViewId};
@@ -26,7 +30,7 @@ use tracing::{debug, error, info, trace, warn};
 pub enum Message {
     Tick,
     WindowCreated { window: Arc<winit::window::Window> },
-    WebViewFrame(WebViewId),
+    WebViewHasNewFrame(WebViewId),
     ImageAllocated(Allocation),
     Keyboard,
 }
@@ -38,19 +42,24 @@ pub enum UserEvent {
 }
 
 /// The global state.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct State {
-    /// Iced and Servo need their own handler of the same window,
-    /// so we put it in an Arc.
-    /// The servo_state need to be accessed to draw frames.
-    pub servo_state: Rc<Servo>,
+    // Servo instance and state.
+    pub servo: Option<Rc<Servo>>,
+    // Proxy to send event to iced from servo runtime.
+    pub proxy: Option<Proxy<Message>>,
 }
 
 /// Listen to events originating from the WebView.
 /// Must be attached to the WebView uppon creation.
 impl ::servo::WebViewDelegate for State {
     #[tracing::instrument(skip_all)]
-    fn notify_new_frame_ready(&self, webview: WebView) {}
+    fn notify_new_frame_ready(&self, webview: WebView) {
+        let message = Message::WebViewHasNewFrame(webview.id());
+        if let Some(proxy) = &self.proxy {
+            proxy.send(message);
+        }
+    }
 }
 
 pub fn runtime() -> anyhow::Result<
