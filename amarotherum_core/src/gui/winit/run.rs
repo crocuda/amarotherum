@@ -21,6 +21,7 @@ use iced_winit::clipboard::Clipboard;
 // use iced_program as program;
 use crate::gui::program::{self, Program};
 
+use iced_futures::backend::native::tokio::Executor as TokioExecutor;
 use iced_winit::Error;
 use iced_winit::core::Renderer;
 use iced_winit::core::backend;
@@ -35,6 +36,7 @@ use iced_winit::futures::futures::{Future, StreamExt};
 use iced_winit::futures::subscription;
 use iced_winit::futures::{Executor, Runtime};
 use iced_winit::graphics::{Compositor, Shell, compositor};
+use iced_winit::runtime::system;
 use iced_winit::runtime::user_interface::{self};
 use iced_winit::runtime::{Action, Task};
 
@@ -45,23 +47,17 @@ use std::borrow::Cow;
 use std::mem::ManuallyDrop;
 use std::slice;
 
-use crate::gui::components::ExtraMessage;
+use crate::gui::components::{App, ExtraMessage};
 use crate::gui::state::Message;
 
-pub fn create_runtime<P>(
-    program: P,
-) -> Result<
+pub fn create_runtime() -> Result<
     (
-        EventLoop<Action<P::Message>>,
-        Runtime<P::Executor, Proxy<P::Message>, Action<P::Message>>,
-        Proxy<P::Message>,
+        EventLoop<Action<Message>>,
+        Runtime<TokioExecutor, Proxy<Message>, Action<Message>>,
+        Proxy<Message>,
     ),
     Error,
->
-where
-    P: Program + ExtraMessage<P::Message>,
-    P::Theme: theme::Base,
-{
+> {
     let event_loop = EventLoop::with_user_event()
         .build()
         .expect("Create event loop");
@@ -76,9 +72,8 @@ where
         });
     }
     let runtime = {
-        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
+        let executor = TokioExecutor::new().map_err(Error::ExecutorCreationFailed)?;
         executor.spawn(worker);
-
         Runtime::new(executor, proxy.clone())
     };
     Ok((event_loop, runtime, proxy))

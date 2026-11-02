@@ -1,6 +1,7 @@
 
 [gui]
 [gui.theme]
+mode = "dark"
 
 ## Tabs
 [gui.theme.tab]

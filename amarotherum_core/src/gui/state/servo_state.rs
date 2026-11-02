@@ -39,7 +39,7 @@ use tracing::{debug, error, info, trace, warn};
 #[derive(Clone)]
 pub struct ServoState {
     pub window: Arc<Window>,
-    pub rendering_context: Rc<OffscreenRenderingContext>,
+    pub rendering_context: Rc<WindowRenderingContext>,
 }
 impl ServoState {
     pub fn rect(&self) -> Box2D<i32, DevicePixel> {
@@ -77,10 +77,10 @@ impl Servo {
 
         let rendering_context =
             Rc::new(WindowRenderingContext::new(display_handle, window_handle, size).unwrap());
-        let rendering_context = Rc::new(WindowRenderingContext::offscreen_context(
-            &rendering_context,
-            size,
-        ));
+        // let rendering_context = Rc::new(WindowRenderingContext::offscreen_context(
+        //     &rendering_context,
+        //     size,
+        // ));
         let _ = rendering_context.make_current();
 
         let notify = Arc::new(Notify::new());

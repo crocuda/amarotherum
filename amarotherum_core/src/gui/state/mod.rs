@@ -8,15 +8,13 @@ use iced_winit::Proxy;
 use iced_winit::futures::Runtime;
 use iced_winit::runtime::Action;
 use iced_winit::winit;
-use winit::{
-    event_loop::{ControlFlow, EventLoop},
-    window::Window,
-};
 
 use crate::gui::program::Program;
 
 // Servo
-use servo::{EventLoopWaker, WebView, WebViewId};
+use dpi::PhysicalSize;
+use servo::{JSValue, JavaScriptEvaluationError};
+use servo::{WebView, WebViewId};
 
 // Globals
 use std::rc::Rc;
@@ -29,10 +27,15 @@ use tracing::{debug, error, info, trace, warn};
 #[derive(Clone, Debug)]
 pub enum Message {
     Tick,
+    ServoNeedsResize(PhysicalSize<u32>),
     WindowCreated { window: Arc<winit::window::Window> },
     WebViewHasNewFrame(WebViewId),
     ImageAllocated(Allocation),
     Keyboard,
+
+    // Js
+    DefaultJsEvaluate,
+    TitleLoaded(Result<JSValue, JavaScriptEvaluationError>),
 }
 
 #[derive(Clone, Debug)]
@@ -41,13 +44,21 @@ pub enum UserEvent {
     Message(Message),
 }
 
+#[derive(Default)]
+pub enum StateType {
+    #[default]
+    Null,
+    Init(Proxy<Message>),
+    Ready(State),
+}
+
 /// The global state.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct State {
     // Servo instance and state.
-    pub servo: Option<Rc<Servo>>,
+    pub servo: Rc<Servo>,
     // Proxy to send event to iced from servo runtime.
-    pub proxy: Option<Proxy<Message>>,
+    pub proxy: Proxy<Message>,
 }
 
 /// Listen to events originating from the WebView.
@@ -56,9 +67,7 @@ impl ::servo::WebViewDelegate for State {
     #[tracing::instrument(skip_all)]
     fn notify_new_frame_ready(&self, webview: WebView) {
         let message = Message::WebViewHasNewFrame(webview.id());
-        if let Some(proxy) = &self.proxy {
-            proxy.send(message);
-        }
+        self.proxy.send(message);
     }
 }
 
