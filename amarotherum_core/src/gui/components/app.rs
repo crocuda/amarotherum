@@ -1,7 +1,7 @@
 use super::Tab;
 use iced_core::image::Allocation;
 
-use crate::gui::components::StatusLine;
+use crate::gui::components::{CommandLine, StatusLine};
 use crate::gui::state::{Message, Servo, State, StateType};
 
 // Wgpu
@@ -41,6 +41,7 @@ pub struct App {
     selected_tab: Option<i32>,
 
     statusline: StatusLine,
+    commandline: CommandLine,
 }
 impl App {
     pub fn run() -> anyhow::Result<()> {
@@ -50,6 +51,7 @@ impl App {
             tabs: Vec::new(),
             selected_tab: None,
             statusline: StatusLine::default(),
+            commandline: CommandLine::default(),
         };
         crate::gui::winit::run::run(app, event_loop, runtime, proxy)?;
         Ok(())
@@ -145,9 +147,9 @@ impl Program for App {
                 .align_top(Length::Fill)
                 .align_left(Length::Fill)
                 .style(container::bordered_box);
-            return column![tab_view, self.statusline.view(), text("commandline")];
+            return column![tab_view, self.statusline.view(), self.commandline.view()];
         } else {
-            return column![self.statusline.view(), text("commandline")];
+            return column![self.statusline.view(), self.commandline.view()];
         }
     }
     /// Emit regular event to redraw window.
@@ -160,6 +162,7 @@ impl Program for App {
         let event_logger = iced::event::listen_raw(|event, _status, _id| {
             // debug!("{:#?}", event);
             match event {
+                Event::Keyboard(event) => Some(Message::Keyboard(event)),
                 Event::Window(event) => match event {
                     window::Event::Resized(size) => {
                         let size = PhysicalSize::new(size.width as u32, size.height as u32);
@@ -170,13 +173,10 @@ impl Program for App {
                 _ => None,
             }
         });
-
-        // let tick = iced::time::every(std::time::Duration::from_millis(8)).map(|_| Message::Tick);
         let tick = iced::time::every(std::time::Duration::from_millis(16)).map(|_| Message::Tick);
         let default_js = iced::time::every(std::time::Duration::from_millis(1000))
             .map(|_| Message::DefaultJsEvaluate);
-        // let tick = iced::time::every(std::time::Duration::from_millis(500)).map(|_| Message::Tick);
-        // let tick = iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::Tick);
+
         Subscription::batch([event_logger, tick, default_js])
     }
 }

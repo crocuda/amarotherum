@@ -3,6 +3,7 @@ pub use servo_state::Servo;
 
 // Winit
 use iced::Event;
+use iced::keyboard;
 use iced_core::image::Allocation;
 use iced_winit::Proxy;
 use iced_winit::futures::Runtime;
@@ -31,7 +32,7 @@ pub enum Message {
     WindowCreated { window: Arc<winit::window::Window> },
     WebViewHasNewFrame(WebViewId),
     ImageAllocated(Allocation),
-    Keyboard,
+    Keyboard(keyboard::Event),
 
     // Js
     DefaultJsEvaluate,

@@ -1,6 +1,6 @@
 # Amarotherum - Arrogant web browser.
 
-Web browser based on [servo](https://servo.org) web engine and [iced](https://ided.rs) GUI.
+Web browser based on the [servo](https://servo.org) web engine and the [iced](https://iced.rs) GUI framework.
 
 ## Early development stage
 

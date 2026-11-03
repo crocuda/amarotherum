@@ -1,13 +1,14 @@
 use core::fmt;
 
 use crate::gui::state::{Message, Servo, State};
-use iced::color;
+use iced::color::Color;
+use iced::font;
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
-use iced::{Background, ContentFit, Length, Task};
+use iced::{Background, ContentFit, Length, Task, Theme};
+use iced_core::text::LineHeight;
 use iced_wgpu::Renderer;
 
 use core::str::FromStr;
-use iced_winit::core::{Color, Theme};
 
 use convert_case::{Case, Casing};
 
@@ -26,12 +27,23 @@ pub enum Mode {
 impl ToString for Mode {
     fn to_string(&self) -> String {
         let res: String = format!("{:?}", self);
-        res.to_case(Case::Pascal)
+        res.to_case(Case::Upper)
     }
 }
 impl Mode {
     pub fn to_widget<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
-        let res = container(text(self.to_string()));
+        let res = container(
+            text(self.to_string())
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                )
+                .size(14)
+                // .line_height(LineHeight::Relative(1_f32))
+                .color(Color::from_str("#282c34").unwrap()),
+        )
+        .padding([1, 8]);
         let container = match &self {
             // Normal -> Blue
             Mode::Normal => res.style(|_| {
@@ -57,11 +69,15 @@ impl Mode {
 
 #[derive(Default, Clone, Debug)]
 pub struct StatusLine {
-    mode: Mode,
+    pub mode: Mode,
 }
 impl StatusLine {
     #[tracing::instrument(skip_all)]
     pub fn view<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
-        row![self.mode.to_widget()]
+        container(row![self.mode.to_widget()])
+            .align_left(Length::Fill)
+            .style(|_| {
+                container::background(Background::Color(Color::from_str("#4e525a").unwrap()))
+            })
     }
 }
