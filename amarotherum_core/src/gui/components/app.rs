@@ -142,8 +142,8 @@ impl Program for App {
             None
         });
         let tick = if let Some(servo) = &self.servo {
-            iced::time::every(std::time::Duration::from_millis(16)).map(|_| Message::Tick)
-            // iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::Tick)
+            // iced::time::every(std::time::Duration::from_millis(16)).map(|_| Message::Tick)
+            iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::Tick)
         } else {
             Subscription::none()
         };
