@@ -7,7 +7,7 @@ use iced::keyboard;
 use iced_core::image::Allocation;
 use iced_winit::Proxy;
 use iced_winit::futures::Runtime;
-use iced_winit::runtime::Action;
+// use iced_winit::runtime::Action;
 use iced_winit::winit;
 
 use crate::gui::program::Program;
@@ -25,8 +25,31 @@ use std::sync::{Arc, RwLock};
 use amarotherum_error::AmaroError;
 use tracing::{debug, error, info, trace, warn};
 
+#[derive(Default, Clone, Debug)]
+pub enum Mode {
+    #[default]
+    Normal,
+    Visual,
+    Follow,
+    Command,
+}
+#[derive(Clone, Debug)]
+pub enum Command {
+    // When prefix is /
+    PatternSearch(String),
+    // When prefix is :
+    Action(String),
+}
+#[derive(Clone, Debug)]
+pub enum Action {
+    Search(String),
+    Url(String),
+    SearchPattern(String),
+}
+
 #[derive(Clone, Debug)]
 pub enum Message {
+    // Internal loop
     Tick,
     ServoNeedsResize(PhysicalSize<u32>),
     WindowCreated { window: Arc<winit::window::Window> },
@@ -34,13 +57,17 @@ pub enum Message {
     ImageAllocated(Allocation),
     Keyboard(keyboard::Event),
 
+    // Actions
+    FocusCommandLine(Mode),
+    FocusView,
+
     // Js
     DefaultJsEvaluate,
     TitleLoaded(Result<JSValue, JavaScriptEvaluationError>),
 }
 
 #[derive(Clone, Debug)]
-pub enum UserEvent {
+pub enum UcerEvent {
     Wake,
     Message(Message),
 }

@@ -1,5 +1,6 @@
 use crate::gui::state::{Message, Servo, State};
 
+use iced::font;
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
 use iced::{ContentFit, Length, Task};
 use iced_wgpu::Renderer;
@@ -20,6 +21,7 @@ use servo::{JSValue, JavaScriptEvaluationError};
 use servo::{OffscreenRenderingContext, RenderingContext};
 use servo::{WebView, WebViewBuilder, WebViewId};
 
+use core::str::FromStr;
 use url::Url;
 
 use std::fs;
@@ -41,6 +43,7 @@ pub struct Tab {
 
     // Js
     title: String,
+    url: Url,
 }
 
 impl Tab {
@@ -67,18 +70,22 @@ impl Tab {
             last_frame: None,
             //
             title: "New tab".to_owned(),
+            url: Url::parse("about:blank").unwrap(),
         })
     }
 }
 
 impl Tab {
     #[tracing::instrument(skip_all)]
-    pub fn update(&mut self, message: Message) -> iced_runtime::Task<Message> {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::DefaultJsEvaluate => {
-                let mut title: String = self.webview.page_title().unwrap();
+                let mut title = String::new();
+                if let Some(val) = self.webview.page_title() {
+                    title += &val;
+                }
                 if let Some(url) = self.webview.url() {
-                    title = format!("{} - {}", title, url);
+                    self.url = url;
                 }
                 self.title = title;
                 Task::none()
@@ -124,6 +131,7 @@ impl Tab {
                 .expand(true);
             column![
                 text(self.title.clone()),
+                text(self.title.clone()),
                 container(image)
                     .align_top(Length::Fill)
                     .align_left(Length::Fill)
@@ -141,6 +149,53 @@ impl Tab {
 }
 
 impl Tab {
+    pub fn url_to_widget<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
+        let proto = match self.url.scheme() {
+            "http" => text("http://")
+                .color(Color::from_str("#ff6b5a").unwrap())
+                .size(14)
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                ),
+            "https" => text("https://")
+                .color(Color::from_str("#98be65").unwrap())
+                .size(14)
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                ),
+            _ => text(""),
+        };
+
+        let mut host = text("");
+        if let Some(val) = self.url.host() {
+            host = text(val.to_string()).color(Color::from_str("#a7aebb").unwrap());
+        }
+        let path = text(self.url.path())
+            .color(Color::from_str("#46d9ff").unwrap())
+            .font(
+                font::Font::new("JetBrainsMono")
+                    .weight(font::Weight::Medium)
+                    .style(font::Style::Normal),
+            )
+            .size(14);
+
+        let mut query = text("");
+        if let Some(val) = self.url.query() {
+            query = text(val)
+                .color(Color::from_str("#c678dd").unwrap())
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                )
+                .size(14);
+        }
+        container(row![proto, host, path, query]).padding([1, 8])
+    }
     /// Evaluate a JavaScript snippet in the webview and deliver the
     /// result through a callback. Servo runs the script asynchronously
     /// (on the next `spin_event_loop` tick that pumps the script
@@ -194,8 +249,6 @@ impl Tab {
 
 /// Turn the last frame of a servo webview into an image that can be printed by iced.
 #[tracing::instrument(skip_all)]
-// pub fn webview_to_image(tab: &Tab, servo: Rc<Servo>) -> Result<Handle, AmaroError> {
-// pub fn webview_to_image(tab: &Tab, servo: Rc<Servo>) -> Result<Bytes, AmaroError> {
 pub fn webview_to_image(tab: &Tab, servo: Rc<Servo>) -> Result<Task<Message>> {
     // debug!("LoadStatus={:#?}", tab.webview.load_status());
     // let _ = servo.state.rendering_context.make_current();

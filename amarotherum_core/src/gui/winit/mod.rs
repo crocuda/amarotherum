@@ -28,8 +28,6 @@ use iced_winit::runtime::Action;
 
 use std::sync::Arc;
 
-use crate::gui::state::UserEvent;
-
 #[derive(Debug)]
 pub enum Event<Message: 'static> {
     WindowCreated {

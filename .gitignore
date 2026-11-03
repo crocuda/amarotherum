@@ -12,6 +12,7 @@
 /target
 # Build directories
 /autocompletion
+.cargo/config.toml
 
 ## Virshle
 # Isos

@@ -2,15 +2,16 @@ use super::Tab;
 use iced_core::image::Allocation;
 
 use crate::gui::components::{CommandLine, StatusLine};
-use crate::gui::state::{Message, Servo, State, StateType};
+use crate::gui::state::{Message, Mode, Servo, State, StateType};
 
 // Wgpu
 use crate::gui::program::Program;
 // use iced::Program;
 
-use iced::widget::{Widget, bottom, button, column, container, row, text};
+use iced::widget::{Id, Widget, bottom, button, column, container, row, text};
 use iced::{Length, Subscription};
 use iced::{Settings, Task, Theme};
+use iced_core::keyboard::{self, Key, key::Named};
 use iced_futures::backend::native::tokio::Executor as TokioExecutor;
 use iced_wgpu::Renderer;
 
@@ -51,7 +52,7 @@ impl App {
             tabs: Vec::new(),
             selected_tab: None,
             statusline: StatusLine::default(),
-            commandline: CommandLine::default(),
+            commandline: CommandLine::new(),
         };
         crate::gui::winit::run::run(app, event_loop, runtime, proxy)?;
         Ok(())
@@ -104,6 +105,10 @@ impl Program for App {
         // Update internal components
         else if let StateType::Init(proxy) = &self.state {
             match message.clone() {
+                Message::Keyboard(event) => {
+                    self.handle_keyboard(event).unwrap();
+                    // Task::none()
+                }
                 Message::WindowCreated { window } => {
                     let servo = Rc::new(Servo::try_new(&window).unwrap());
                     let inner_state = State {
@@ -112,21 +117,30 @@ impl Program for App {
                     };
                     let ready_state = StateType::Ready(inner_state.clone());
                     self.state = ready_state;
-                    self.tabs.push(Tab::try_new(Rc::new(inner_state)).unwrap())
+                    self.tabs.push(Tab::try_new(Rc::new(inner_state)).unwrap());
+                    // Task::none()
                 }
-                _ => {}
+                _ => {
+                    // Task::none()
+                }
             }
         } else if let StateType::Ready(state) = &self.state {
             match message.clone() {
                 Message::Tick => {
                     state.servo.instance.spin_event_loop();
+                    // Task::none()
                 }
                 Message::ServoNeedsResize(size) => {
                     // state.servo.state.rendering_context.resize(size);
+                    // Task::none()
                 }
-                _ => {}
+                _ => {
+                    // Task::none()
+                }
             }
-        };
+        } else {
+            // Task::none()
+        }
         // Pass messages to sub components
         let tasks: Vec<Task<Message>> = self
             .tabs
@@ -159,7 +173,7 @@ impl Program for App {
         let StateType::Ready(state) = &self.state else {
             return Subscription::none();
         };
-        let event_logger = iced::event::listen_raw(|event, _status, _id| {
+        let event_logger: Subscription<Message> = iced::event::listen_raw(|event, _status, _id| {
             // debug!("{:#?}", event);
             match event {
                 Event::Keyboard(event) => Some(Message::Keyboard(event)),
@@ -178,5 +192,36 @@ impl Program for App {
             .map(|_| Message::DefaultJsEvaluate);
 
         Subscription::batch([event_logger, tick, default_js])
+    }
+}
+
+impl App {
+    pub fn handle_keyboard(&self, event: keyboard::Event) -> anyhow::Result<Task<Message>> {
+        let task = match event {
+            // keyboard::Event::KeyPressed(key) => match key {
+            keyboard::Event::KeyPressed {
+                modified_key: key, ..
+            } => match key {
+                Key::Character(c) => match c.as_str() {
+                    ":" => {
+                        let focus_input =
+                            iced::widget::operation::focus::<Id>(self.commandline.id.clone())
+                                .map(|_| Message::FocusCommandLine(Mode::Command));
+                        // Task::none()
+                        // Task::done(Message::FocusCommandLine(Mode::Command(":")))
+                        Task::batch(vec![focus_input])
+                    }
+                    // "/" => Task::done(Message::FocusCommandLine(Mode::Command)),
+                    _ => Task::none(),
+                },
+                Key::Named(name) => match name {
+                    Named::Escape => Task::none(),
+                    _ => Task::none(),
+                },
+                _ => Task::none(),
+            },
+            _ => Task::none(),
+        };
+        Ok(task)
     }
 }

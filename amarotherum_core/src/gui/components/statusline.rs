@@ -8,22 +8,15 @@ use iced::{Background, ContentFit, Length, Task, Theme};
 use iced_core::text::LineHeight;
 use iced_wgpu::Renderer;
 
+use convert_case::{Case, Casing};
 use core::str::FromStr;
 
-use convert_case::{Case, Casing};
+use crate::gui::state::Mode;
 
 // Error
 use amarotherum_error::{AmaroError, LibError};
 use miette::{Error, Result, miette};
 
-#[derive(Default, Clone, Debug)]
-pub enum Mode {
-    #[default]
-    Normal,
-    Visual,
-    Follow,
-    Command,
-}
 impl ToString for Mode {
     fn to_string(&self) -> String {
         let res: String = format!("{:?}", self);
@@ -59,7 +52,7 @@ impl Mode {
             }),
             // Command -> Green
             Mode::Command => res.style(|_| {
-                container::background(Background::Color(Color::from_str("#48a6e6").unwrap()))
+                container::background(Background::Color(Color::from_str("#98be65").unwrap()))
             }),
             // Insert: Pink
         };
