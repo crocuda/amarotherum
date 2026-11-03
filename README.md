@@ -2,12 +2,14 @@
 
 Web browser based on [servo](https://servo.org) web engine and [iced](https://ided.rs) GUI.
 
-![screenshot](public/screenshot.png?raw=true)
-
 ## Early development stage
 
-From now we are in the middle of nowhere!
-Amarotherum is nothing near from usable.
+For now Amarotherum is nothing near from usable.
+It only displays hardcoded url, has neither mouse nor keyboard support.
+
+See for yourself.
+
+![screenshot](public/screenshot.png?raw=true)
 
 ## Useful commands
 
@@ -25,6 +27,10 @@ cargo run --bin amarotherum gui run
 
 - [x]: integrate iced with servo runtime
   - [x]: display with gpu only.
+
+- [x]: autodetect OS dark/light mode.
+
+- [ ]: add configuration/theming support (TOML).
 
 - [ ]: add command to search.
 - [ ]: add keyboard support.
