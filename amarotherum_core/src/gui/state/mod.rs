@@ -44,7 +44,7 @@ pub enum Command {
     /// When prefix is :
     Action(String),
 }
-#[derive(Clone, Debug, EnumIter)]
+#[derive(Clone, Debug, EnumIter, PartialEq)]
 pub enum Action {
     /// Search from keyword.
     Search(String),

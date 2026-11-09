@@ -21,15 +21,15 @@ pub struct CommandLine {
     pub id: Id,
     pub input: String,
     pub state: Rc<State>,
-    // pub autocomplete: Autocomplete,
+    pub autocomplete: Autocomplete,
 }
 impl CommandLine {
     pub fn new(state: Rc<State>) -> Self {
         Self {
             id: Id::unique(),
             input: String::new(),
+            autocomplete: Autocomplete::try_new(state.clone()).unwrap(),
             state,
-            // autocomplete: Autocomplete::try_new(state).unwrap(),
         }
     }
 }
@@ -59,13 +59,13 @@ impl CommandLine {
                 value: Color::from_str("#a7aebb").unwrap(),
             });
 
-        let autocomplete = Autocomplete::try_new(self.state.clone()).unwrap();
+        // let autocomplete = Autocomplete::try_new(self.state.clone()).unwrap();
         // let autocomplete = Menu::new();
         // container(text("float")))
         // .translate(|_, _| iced::Vector { x: -10.0, y: -10.0 });
 
-        // container(row![text_input, autocomplete.view()])
-        container(row![text_input, autocomplete.view()])
+        container(row![text_input, self.autocomplete.view()])
+            // container(row![text_input])
             .align_left(Length::Fill)
             .style(|_| {
                 container::background(Background::Color(Color::from_str("#282c34").unwrap()))
