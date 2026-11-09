@@ -10,8 +10,6 @@ use iced_winit::futures::Runtime;
 // use iced_winit::runtime::Action;
 use iced_winit::winit;
 
-use crate::gui::program::Program;
-
 // Servo
 use dpi::PhysicalSize;
 use servo::{JSValue, JavaScriptEvaluationError};
@@ -20,6 +18,11 @@ use servo::{WebView, WebViewId};
 // Globals
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+
+use crate::config::Config;
+use crate::gui::program::Program;
+
+use strum::EnumIter;
 
 // Error
 use amarotherum_error::AmaroError;
@@ -35,20 +38,34 @@ pub enum Mode {
 }
 #[derive(Clone, Debug)]
 pub enum Command {
-    // When prefix is /
+    /// Search a pattern in the webpage
+    /// When prefix is /
     PatternSearch(String),
-    // When prefix is :
+    /// When prefix is :
     Action(String),
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, EnumIter)]
 pub enum Action {
+    /// Search from keyword.
     Search(String),
     Url(String),
-    SearchPattern(String),
+    VerticalSplit,
+    HorizontalSplit,
+}
+impl ToString for Action {
+    fn to_string(&self) -> String {
+        match self {
+            Action::Search(v) => "search".to_owned(),
+            Action::Url(v) => "url".to_owned(),
+            Action::VerticalSplit => "vsp".to_owned(),
+            Action::HorizontalSplit => "hsp".to_owned(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
+    Null,
     // Internal loop
     Tick,
     ServoNeedsResize(PhysicalSize<u32>),
@@ -60,6 +77,8 @@ pub enum Message {
     // Actions
     FocusCommandLine(Mode),
     FocusView,
+    TypingCommand(String),
+    SubmitCommand,
 
     // Js
     DefaultJsEvaluate,
@@ -83,6 +102,7 @@ pub enum StateType {
 /// The global state.
 #[derive(Clone)]
 pub struct State {
+    pub config: Config,
     // Servo instance and state.
     pub servo: Rc<Servo>,
     // Proxy to send event to iced from servo runtime.

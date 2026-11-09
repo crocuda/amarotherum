@@ -8,3 +8,5 @@ pub use statusline::StatusLine;
 
 mod commandline;
 pub use commandline::CommandLine;
+
+pub mod autocomplete;

@@ -1,6 +1,7 @@
 use super::Tab;
 use iced_core::image::Allocation;
 
+use crate::config::Config;
 use crate::gui::components::{CommandLine, StatusLine};
 use crate::gui::state::{Message, Mode, Servo, State, StateType};
 
@@ -42,7 +43,7 @@ pub struct App {
     selected_tab: Option<i32>,
 
     statusline: StatusLine,
-    commandline: CommandLine,
+    commandline: Option<CommandLine>,
 }
 impl App {
     pub fn run() -> anyhow::Result<()> {
@@ -52,7 +53,7 @@ impl App {
             tabs: Vec::new(),
             selected_tab: None,
             statusline: StatusLine::default(),
-            commandline: CommandLine::new(),
+            commandline: None,
         };
         crate::gui::winit::run::run(app, event_loop, runtime, proxy)?;
         Ok(())
@@ -98,34 +99,37 @@ impl Program for App {
     }
     #[tracing::instrument(skip_all)]
     fn update(&mut self, _state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-        debug!("Message={:#?}", message);
+        // debug!("Message={:#?}", message);
         if let StateType::Null = self.state {
             return Task::none();
         }
         // Update internal components
         else if let StateType::Init(proxy) = &self.state {
             match message.clone() {
-                Message::Keyboard(event) => {
-                    self.handle_keyboard(event).unwrap();
-                    // Task::none()
-                }
                 Message::WindowCreated { window } => {
+                    let config = Config::get().unwrap();
                     let servo = Rc::new(Servo::try_new(&window).unwrap());
                     let inner_state = State {
+                        config,
                         servo,
                         proxy: proxy.clone(),
                     };
                     let ready_state = StateType::Ready(inner_state.clone());
                     self.state = ready_state;
-                    self.tabs.push(Tab::try_new(Rc::new(inner_state)).unwrap());
-                    // Task::none()
+
+                    let inner_state = Rc::new(inner_state);
+                    self.commandline = Some(CommandLine::new(inner_state.clone()));
+                    self.tabs.push(Tab::try_new(inner_state.clone()).unwrap());
+
+                    return Task::none();
                 }
-                _ => {
-                    // Task::none()
-                }
+                _ => return Task::none(),
             }
         } else if let StateType::Ready(state) = &self.state {
             match message.clone() {
+                Message::Keyboard(event) => {
+                    return self.handle_keyboard(event).unwrap();
+                }
                 Message::Tick => {
                     state.servo.instance.spin_event_loop();
                     // Task::none()
@@ -141,19 +145,31 @@ impl Program for App {
         } else {
             // Task::none()
         }
+
         // Pass messages to sub components
-        let tasks: Vec<Task<Message>> = self
+        let mut tasks: Vec<Task<Message>> = vec![];
+
+        let stline_task = self.statusline.update(message.clone());
+        tasks.push(stline_task);
+
+        if let Some(ref mut commandline) = self.commandline {
+            let cmdline_task = commandline.update(message.clone());
+            tasks.push(cmdline_task);
+        }
+        let tab_tasks: Vec<Task<Message>> = self
             .tabs
             .iter_mut()
             .map(|e| e.update(message.clone()))
             .collect();
+        tasks.extend(tab_tasks);
+
         Task::batch(tasks)
     }
 
     #[tracing::instrument(skip_all)]
     fn view<'a>(
-        &self,
-        _state: &'a Self::State,
+        &'a self,
+        state: &'a Self::State,
         _window: window::Id,
     ) -> impl Widget<Self::Message, Self::Theme, Self::Renderer> + 'a {
         if let Some(tab) = self.tabs.last() {
@@ -161,9 +177,13 @@ impl Program for App {
                 .align_top(Length::Fill)
                 .align_left(Length::Fill)
                 .style(container::bordered_box);
-            return column![tab_view, self.statusline.view(), self.commandline.view()];
+            if let Some(ref cmd) = self.commandline {
+                return column![tab_view, self.statusline.view(), cmd.view(),];
+            } else {
+                return column![tab_view, self.statusline.view()];
+            }
         } else {
-            return column![self.statusline.view(), self.commandline.view()];
+            return column![self.statusline.view()];
         }
     }
     /// Emit regular event to redraw window.
@@ -187,7 +207,8 @@ impl Program for App {
                 _ => None,
             }
         });
-        let tick = iced::time::every(std::time::Duration::from_millis(16)).map(|_| Message::Tick);
+        // let tick = iced::time::every(std::time::Duration::from_millis(16)).map(|_| Message::Tick);
+        let tick = iced::time::every(std::time::Duration::from_millis(1000)).map(|_| Message::Tick);
         let default_js = iced::time::every(std::time::Duration::from_millis(1000))
             .map(|_| Message::DefaultJsEvaluate);
 
@@ -196,32 +217,45 @@ impl Program for App {
 }
 
 impl App {
-    pub fn handle_keyboard(&self, event: keyboard::Event) -> anyhow::Result<Task<Message>> {
-        let task = match event {
-            // keyboard::Event::KeyPressed(key) => match key {
-            keyboard::Event::KeyPressed {
-                modified_key: key, ..
-            } => match key {
-                Key::Character(c) => match c.as_str() {
-                    ":" => {
-                        let focus_input =
-                            iced::widget::operation::focus::<Id>(self.commandline.id.clone())
-                                .map(|_| Message::FocusCommandLine(Mode::Command));
-                        // Task::none()
-                        // Task::done(Message::FocusCommandLine(Mode::Command(":")))
-                        Task::batch(vec![focus_input])
-                    }
-                    // "/" => Task::done(Message::FocusCommandLine(Mode::Command)),
-                    _ => Task::none(),
-                },
-                Key::Named(name) => match name {
-                    Named::Escape => Task::none(),
+    pub fn handle_keyboard(&mut self, event: keyboard::Event) -> anyhow::Result<Task<Message>> {
+        if let Some(ref mut cmd) = self.commandline {
+            let task = match event {
+                // keyboard::Event::KeyPressed(key) => match key {
+                keyboard::Event::KeyPressed {
+                    modified_key: key, ..
+                } => match key {
+                    Key::Character(c) => match c.as_str() {
+                        ":" => {
+                            cmd.input = c.to_string();
+                            let focus_input = iced::widget::operation::focus::<Id>(cmd.id.clone())
+                                .map(|_| Message::Null);
+                            let cursor_to_end =
+                                iced::widget::operation::text_input::move_cursor_to_end::<Id>(
+                                    cmd.id.clone(),
+                                )
+                                .map(|_| Message::Null);
+                            let change_mode = Task::done(Message::FocusCommandLine(Mode::Command));
+                            Task::batch(vec![change_mode, cursor_to_end, focus_input])
+                        }
+                        // "/" => Task::done(Message::FocusCommandLine(Mode::Command)),
+                        _ => Task::none(),
+                    },
+                    Key::Named(name) => match name {
+                        Named::Escape => {
+                            cmd.input = "".to_string();
+                            let change_mode = Task::done(Message::FocusCommandLine(Mode::Normal));
+
+                            Task::batch(vec![change_mode])
+                        }
+                        _ => Task::none(),
+                    },
                     _ => Task::none(),
                 },
                 _ => Task::none(),
-            },
-            _ => Task::none(),
-        };
-        Ok(task)
+            };
+            return Ok(task);
+        } else {
+            return Ok(Task::none());
+        }
     }
 }

@@ -52,7 +52,7 @@ pub trait Program: Sized {
     fn update(&mut self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;
 
     fn view<'a>(
-        &self,
+        &'a self,
         state: &'a Self::State,
         window: window::Id,
     ) -> impl Widget<Self::Message, Self::Theme, Self::Renderer> + 'a;
@@ -163,7 +163,7 @@ pub fn with_subscription<P: Program>(
 
         #[inline]
         fn view<'a>(
-            &self,
+            &'a self,
             state: &'a Self::State,
             window: window::Id,
         ) -> impl Widget<Self::Message, Self::Theme, Self::Renderer> + 'a {
@@ -258,7 +258,7 @@ pub fn with_style<P: Program>(
 
         #[inline]
         fn view<'a>(
-            &self,
+            &'a self,
             state: &'a Self::State,
             window: window::Id,
         ) -> impl Widget<Self::Message, Self::Theme, Self::Renderer> + 'a {
@@ -341,7 +341,7 @@ pub fn with_executor<P: Program, E: Executor>(
 
         #[inline]
         fn view<'a>(
-            &self,
+            &'a self,
             state: &'a Self::State,
             window: window::Id,
         ) -> impl Widget<Self::Message, Self::Theme, Self::Renderer> + 'a {

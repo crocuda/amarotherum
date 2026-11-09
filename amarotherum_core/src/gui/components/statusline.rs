@@ -16,6 +16,7 @@ use crate::gui::state::Mode;
 // Error
 use amarotherum_error::{AmaroError, LibError};
 use miette::{Error, Result, miette};
+use tracing::{debug, info};
 
 impl ToString for Mode {
     fn to_string(&self) -> String {
@@ -32,11 +33,13 @@ impl Mode {
                         .weight(font::Weight::Medium)
                         .style(font::Style::Normal),
                 )
-                .size(14)
+                .size(16)
+                .center()
                 // .line_height(LineHeight::Relative(1_f32))
-                .color(Color::from_str("#282c34").unwrap()),
+                .color(Color::from_str("#282c34").unwrap())
+                .height(Length::Fill),
         )
-        .padding([1, 8]);
+        .padding([0, 8]);
         let container = match &self {
             // Normal -> Blue
             Mode::Normal => res.style(|_| {
@@ -70,7 +73,18 @@ impl StatusLine {
         container(row![self.mode.to_widget()])
             .align_left(Length::Fill)
             .style(|_| {
-                container::background(Background::Color(Color::from_str("#4e525a").unwrap()))
+                container::background(Background::Color(Color::from_str("#32363e").unwrap()))
             })
+            .height(26)
+    }
+    #[tracing::instrument(skip_all)]
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::FocusCommandLine(mode) => {
+                self.mode = mode;
+                Task::none()
+            }
+            _ => Task::none(),
+        }
     }
 }

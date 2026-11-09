@@ -2,7 +2,7 @@ use crate::gui::state::{Message, Servo, State};
 
 use iced::font;
 use iced::widget::{Widget, bottom, button, column, container, row, slider, text, text_input};
-use iced::{ContentFit, Length, Task};
+use iced::{Background, ContentFit, Length, Task};
 use iced_wgpu::Renderer;
 use iced_winit::core::{Color, Theme};
 
@@ -121,7 +121,7 @@ impl Tab {
         }
     }
     #[tracing::instrument(skip_all)]
-    pub fn view<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
+    pub fn view<'a>(&'a self) -> impl Widget<Message, Theme, Renderer> + 'a {
         // TEST: Load local image.
         // let image: Image<Handle> = Image::new("/home/anon/Pictures/megatron_pp.png")
         if let Some(allocation) = self.last_frame.clone() {
@@ -129,9 +129,10 @@ impl Tab {
                 .filter_method(FilterMethod::Nearest)
                 .content_fit(ContentFit::Fill)
                 .expand(true);
+
             column![
-                text(self.title.clone()),
-                text(self.title.clone()),
+                self.title_to_widget(),
+                self.url_to_widget(),
                 container(image)
                     .align_top(Length::Fill)
                     .align_left(Length::Fill)
@@ -149,7 +150,22 @@ impl Tab {
 }
 
 impl Tab {
-    pub fn url_to_widget<'a>(&self) -> impl Widget<Message, Theme, Renderer> + 'a {
+    pub fn title_to_widget<'a>(&'a self) -> impl Widget<Message, Theme, Renderer> + 'a {
+        container(
+            text(&self.title)
+                .color(Color::from_str("#a7aebb").unwrap())
+                .size(14 + 2)
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                ),
+        )
+        .align_left(Length::Fill)
+        .padding([1, 8])
+        .style(|_| container::background(Background::Color(Color::from_str("#000000").unwrap())))
+    }
+    pub fn url_to_widget<'a>(&'a self) -> impl Widget<Message, Theme, Renderer> + 'a {
         let proto = match self.url.scheme() {
             "http" => text("http://")
                 .color(Color::from_str("#ff6b5a").unwrap())
@@ -172,7 +188,14 @@ impl Tab {
 
         let mut host = text("");
         if let Some(val) = self.url.host() {
-            host = text(val.to_string()).color(Color::from_str("#a7aebb").unwrap());
+            host = text(val.to_string())
+                .color(Color::from_str("#a7aebb").unwrap())
+                .font(
+                    font::Font::new("JetBrainsMono")
+                        .weight(font::Weight::Medium)
+                        .style(font::Style::Normal),
+                )
+                .size(14);
         }
         let path = text(self.url.path())
             .color(Color::from_str("#46d9ff").unwrap())
@@ -194,7 +217,12 @@ impl Tab {
                 )
                 .size(14);
         }
-        container(row![proto, host, path, query]).padding([1, 8])
+        container(row![proto, host, path, query])
+            .align_left(Length::Fill)
+            .padding([1, 8])
+            .style(|_| {
+                container::background(Background::Color(Color::from_str("#32363e").unwrap()))
+            })
     }
     /// Evaluate a JavaScript snippet in the webview and deliver the
     /// result through a callback. Servo runs the script asynchronously
