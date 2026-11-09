@@ -13,6 +13,7 @@ use iced::widget::overlay::menu;
 
 // use iced::widget::text_input::{self, TextInput};
 use super::text_input::{self, TextInput};
+use iced_core::text;
 
 use iced_core::clipboard::Clipboard;
 use iced_core::event::Event;
@@ -22,9 +23,8 @@ use iced_core::layout::{self, Layout};
 use iced_core::mouse;
 use iced_core::overlay::Element as OverlayElement;
 use iced_core::renderer;
-use iced_core::text;
 
-use iced_core::widget::operation::Focusable as _;
+// use iced_core::widget::operation::Focusable as _;
 use iced_core::widget::operation::focusable::Focusable;
 
 use iced_core::widget::{self, Widget};
@@ -35,61 +35,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use std::time::Instant;
 
-/// Creates an [`AutoComplete`] widget.
-///
-/// - `state`: the source of truth for the option pool and the current text,
-///   held by the caller.
-/// - `placeholder`: the placeholder shown when the text is empty.
-/// - `on_input`: called on every text change. Handle it in your application's
-///   `update`; the widget performs no I/O and no debouncing.
-/// - `on_submit`: called when the current text is submitted (either free text
-///   or the value filled in after selecting an option).
-/// - `on_option_selected`: called when a specific option is selected (optional).
-///
-/// If the options come from a remote source, start the request in `update` from
-/// `on_input` and hand the results back with [`State::set_options`]. See the
-/// crate docs for the full shape, and the `remote` example for debouncing and
-/// for discarding stale responses.
-pub fn auto_complete<'a, T, Message, Theme, Renderer>(
-    state: &'a State<T>,
-    placeholder: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-    on_submit: impl Fn(String) -> Message + 'a,
-    on_option_selected: Option<impl Fn(T) -> Message + 'a>,
-) -> AutoComplete<'a, T, Message, Theme, Renderer>
-where
-    T: Display + Clone + 'static,
-    Message: Clone + 'a,
-    Theme: Catalog + 'a,
-    Renderer: text::Renderer + 'a,
-{
-    AutoComplete {
-        state,
-        text_input: TextInput::new(placeholder, &state.value())
-            .on_input(TextInputEvent::TextChanged)
-            .class(Theme::default_input())
-            .padding(text_input::DEFAULT_PADDING),
-        font: None,
-        padding: text_input::DEFAULT_PADDING,
-        size: None,
-        on_input: Box::new(on_input),
-        on_submit: Box::new(on_submit),
-        on_option_selected: on_option_selected
-            .map(|f| Box::new(f) as Box<dyn Fn(T) -> Message + 'a>),
-
-        to_value: Box::new(|option: &T| option.to_string()),
-        to_string: Box::new(|option: &T| option.to_string()),
-
-        on_open: None,
-        on_close: None,
-        text_shaping: text::Shaping::default(),
-        menu_class: <Theme as Catalog>::default_menu(),
-        menu_height: Length::Shrink,
-    }
-}
-
 /// A text input with a suggestion menu.
-pub struct AutoComplete<'a, T, Message, Theme = iced_core::Theme, Renderer = iced::widget::Renderer>
+pub struct AutoComplete<'a, T, Message, Theme = iced_core::Theme, Renderer = iced_widget::Renderer>
 where
     Theme: Catalog,
     Renderer: text::Renderer,
@@ -112,6 +59,8 @@ where
     menu_class: <Theme as menu::Catalog>::Class<'a>,
     menu_height: Length,
 }
+
+impl<T, Message, Theme> widget::Meta for AutoComplete<'_, T, Message, Theme> where Theme: Catalog {}
 
 impl<'a, T, Message, Theme, Renderer> AutoComplete<'a, T, Message, Theme, Renderer>
 where
@@ -604,7 +553,7 @@ where
         let started_focused = {
             let text_input_state = tree.children[0]
                 .state
-                .downcast_ref::<text_input::State<Renderer::Paragraph>>();
+                .downcast_ref::<State<<Renderer as text::Renderer>::Paragraph>>();
 
             text_input_state.is_focused()
         };
@@ -654,7 +603,7 @@ where
         let is_focused = {
             let text_input_state = tree.children[0]
                 .state
-                .downcast_ref::<State<<Renderer as text_input::Renderer>::Paragraph>>();
+                .downcast_ref::<State<<Renderer as text::Renderer>::Paragraph>>();
 
             text_input_state.is_focused()
         };
@@ -769,7 +718,7 @@ where
         let is_focused = {
             let text_input_state = tree.children[0]
                 .state
-                .downcast_ref::<State<Renderer::Paragraph>>();
+                .downcast_ref::<text_input::State<<Renderer as text::Renderer>::Paragraph>>();
             text_input_state.is_focused()
         };
 
@@ -951,7 +900,8 @@ where
 //     Renderer: text::Renderer + 'a,
 // {
 //     fn from(auto_complete: AutoComplete<'a, T, Message, Theme, Renderer>) -> Self {
-//         Self::new(auto_complete)
+//         // Self::new(auto_complete)
+//         iced::Element::new(auto_complete)
 //     }
 // }
 
