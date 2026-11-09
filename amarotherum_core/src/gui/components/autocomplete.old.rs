@@ -1,13 +1,16 @@
-use iced::Size;
 use iced::color::Color;
 use iced::font;
 use iced::overlay::menu::Catalog;
 use iced::widget::{
-    Float, Id, PickList, Widget, bottom, button, column, container, overlay::menu, row, slider,
-    text, text_input,
+    Float, Id, Widget, bottom, button, column, container, overlay::menu, row, slider, text,
+    text_input,
 };
 use iced::{Background, ContentFit, Length, Task, Theme};
+use iced::{Size, Vector};
 use iced_wgpu::Renderer;
+
+// use iced::widget::PickList
+use super::_autocomplete::PickList;
 
 use crate::gui::state::{Action, Command, Message, Mode, State};
 
@@ -68,11 +71,19 @@ where
         };
         let theme = <Theme as Catalog>::default();
 
-        Float::new(container(PickList::new(
-            self.selected.clone(),
-            self.actions.clone(),
-            Action::to_string,
-        )))
+        Float::new(
+            container(
+                PickList::new(
+                    self.selected.clone(),
+                    self.actions.clone(),
+                    Action::to_string,
+                )
+                .on_select(on_selected)
+                .placeholder("coucou"),
+            )
+            .height(300),
+        )
+        .translate(|_, _| Vector::new(-100.0, -100.0))
     }
 }
 

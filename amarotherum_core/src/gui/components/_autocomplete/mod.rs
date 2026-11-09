@@ -81,6 +81,9 @@
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
 
-mod auto_complete;
+// mod auto_complete;
 
-pub use auto_complete::{AutoComplete, Catalog, Filter, State, auto_complete};
+// pub use auto_complete::{AutoComplete, Catalog, Filter, State, auto_complete};
+
+mod pick_list;
+pub use pick_list::PickList;
